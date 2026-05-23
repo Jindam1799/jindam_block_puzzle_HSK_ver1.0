@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>진담 중국어 블록 퍼즐</title>
+    <title>JD CHINESE HSK BLOCK PUZZLE</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -17,14 +17,15 @@
     </div>
 
     <div id="lobby-screen" style="display: none">
-      <h1 class="lobby-title">진담 중국어</h1>
-      <p class="lobby-subtitle">중국어 블록 퍼즐</p>
+      <h1 class="lobby-title">JD CHINESE</h1>
+      <p class="lobby-subtitle">HSK BLOCK PUZZLE</p>
 
       <div class="mode-buttons">
-        <button class="mode-btn normal-btn" onclick="startGame('normal')">
+        <!-- ★ 클릭 시 바로 게임 시작이 아닌, 급수 선택 모달을 엽니다 ★ -->
+        <button class="mode-btn normal-btn" onclick="openHSKModal('normal')">
           NORMAL MODE<br />
         </button>
-        <button class="mode-btn hell-btn" onclick="startGame('hell')">
+        <button class="mode-btn hell-btn" onclick="openHSKModal('hell')">
           HELL MODE<br />
         </button>
         <button class="mode-btn rank-btn" onclick="showRankingScreen('normal')">
@@ -33,33 +34,133 @@
       </div>
     </div>
 
+    <!-- ★ HSK 급수 선택 팝업창 ★ -->
+    <div id="hsk-modal" class="modal" style="z-index: 250">
+      <div
+        class="modal-content"
+        style="
+          border-color: #fff;
+          box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+          max-width: 300px;
+        "
+      >
+        <h3
+          id="hsk-modal-title"
+          style="color: #fff; margin-bottom: 20px; font-size: 16pt"
+        >
+          도전할 급수를 선택하세요
+        </h3>
+        <div class="mode-buttons" style="width: 100%">
+          <button
+            class="option-btn"
+            onclick="selectHSK('hsk4')"
+            style="
+              background: linear-gradient(135deg, #43e97b, #38f9d7);
+              color: #000;
+              box-shadow: 0 0 10px rgba(67, 233, 123, 0.5);
+            "
+          >
+            HSK 4급
+          </button>
+          <button
+            class="option-btn"
+            onclick="selectHSK('hsk5')"
+            style="
+              background: linear-gradient(135deg, #00f2fe, #4facfe);
+              color: #000;
+              box-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+            "
+          >
+            HSK 5급
+          </button>
+          <button
+            class="option-btn"
+            onclick="selectHSK('hsk6')"
+            style="
+              background: linear-gradient(135deg, #b06ab3, #4568dc);
+              color: #fff;
+              box-shadow: 0 0 10px rgba(176, 106, 179, 0.5);
+            "
+          >
+            HSK 6급
+          </button>
+        </div>
+        <button
+          class="option-btn"
+          onclick="closeHSKModal()"
+          style="
+            margin-top: 15px;
+            background: transparent;
+            border: 1px solid #888;
+            color: #888;
+          "
+        >
+          취소
+        </button>
+      </div>
+    </div>
+
     <div id="ranking-screen" style="display: none">
       <h2
         style="
           color: #00ffcc;
-          margin-bottom: 20px;
+          margin-bottom: 15px;
           font-size: 24pt;
           text-shadow: 0 0 10px #00ffcc;
         "
       >
         명예의 전당
       </h2>
-      <div class="ranking-tabs">
+
+      <div class="ranking-tabs" style="margin-bottom: 10px">
         <button
           id="tab-normal"
           class="tab-btn active"
-          onclick="renderRankingList('normal')"
+          onclick="changeRankMode('normal')"
         >
           NORMAL
         </button>
-        <button
-          id="tab-hell"
-          class="tab-btn"
-          onclick="renderRankingList('hell')"
-        >
+        <button id="tab-hell" class="tab-btn" onclick="changeRankMode('hell')">
           HELL 🔥
         </button>
       </div>
+
+      <div
+        class="ranking-level-tabs"
+        style="
+          display: flex;
+          width: 90%;
+          max-width: 400px;
+          margin-bottom: 15px;
+          gap: 5px;
+        "
+      >
+        <button
+          id="tab-rank-hsk4"
+          class="tab-btn active"
+          onclick="changeRankLevel('hsk4')"
+          style="border-radius: 8px"
+        >
+          HSK 4급
+        </button>
+        <button
+          id="tab-rank-hsk5"
+          class="tab-btn"
+          onclick="changeRankLevel('hsk5')"
+          style="border-radius: 8px"
+        >
+          HSK 5급
+        </button>
+        <button
+          id="tab-rank-hsk6"
+          class="tab-btn"
+          onclick="changeRankLevel('hsk6')"
+          style="border-radius: 8px"
+        >
+          HSK 6급
+        </button>
+      </div>
+
       <div class="ranking-list-container">
         <ul id="ranking-list"></ul>
       </div>
@@ -75,6 +176,7 @@
       </button>
     </div>
 
+    <!-- 인게임 화면 -->
     <div id="game-container" style="display: none">
       <header>
         <div class="score-box">SCORE: <span id="score">0</span></div>
@@ -82,14 +184,12 @@
       </header>
 
       <div id="combo-display" class="combo-text"></div>
-      <!-- ★ ALL CLEAR 이펙트 전용 컨테이너 ★ -->
       <div id="all-clear-display" class="all-clear-text">
         ALL CLEAR!<br /><span style="font-size: 18pt; color: #fff"
           >+1000 SCORE</span
         >
       </div>
 
-      <!-- ★ 퀴즈 팝업창 (힌트 기능 추가) ★ -->
       <div id="quiz-modal" class="modal" style="z-index: 300">
         <div
           class="modal-content"
@@ -98,20 +198,16 @@
             box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
           "
         >
-          <h3 style="color: #00ffcc; margin-bottom: 15px">퀴즈!</h3>
-
-          <!-- 문제 (중국어 간체자) -->
+          <h3 style="color: #00ffcc; margin-bottom: 15px">관문을 통과하라!</h3>
           <p
             id="quiz-question"
             style="
-              font-size: 25pt;
+              font-size: 28pt;
               font-weight: bold;
               color: #fff;
               margin-bottom: 10px;
             "
           ></p>
-
-          <!-- 병음 힌트 버튼 및 텍스트 영역 -->
           <button
             id="hint-btn"
             onclick="showHint()"
@@ -140,14 +236,13 @@
               letter-spacing: 2px;
             "
           ></p>
-
-          <!-- 보기 3개 -->
           <div id="quiz-options"></div>
           <p id="quiz-feedback" class="feedback"></p>
         </div>
       </div>
 
-      <div id="game-over-modal" class="modal">
+      <!-- 닉네임 입력 팝업 및 기타 모달들 -->
+      <div id="game-over-modal" class="modal" style="z-index: 400">
         <div
           class="modal-content"
           style="
@@ -174,7 +269,6 @@
               color: #e0e0e0;
             "
           ></p>
-
           <input
             type="text"
             id="nickname-input"
@@ -192,8 +286,7 @@
         </div>
       </div>
 
-      <!-- ★ 닉네임 미입력 경고 커스텀 팝업창 ★ -->
-      <div id="alert-modal" class="modal" style="z-index: 300">
+      <div id="alert-modal" class="modal" style="z-index: 500">
         <div
           class="modal-content"
           style="
@@ -219,7 +312,8 @@
               color: #fff;
             "
           >
-            이름을 남겨주시오!<br /><span style="font-size: 11pt; color: #aaa"
+            이름을 남겨주세요!<br /><span
+              style="font-size: 11pt; color: #aaa"
               >(닉네임을 입력해주세요)</span
             >
           </p>
