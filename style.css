@@ -693,18 +693,28 @@ body.theme-normal.theme-hsk4 .color-3 {
   background: linear-gradient(135deg, #43e97b, #38f9d7);
 }
 
-/* 노말 모드 - HSK 5급 (파랑/바다 테마) */
+/* HSK 5급 노말 모드 - 배경은 하늘색 유지 */
 body.theme-normal.theme-hsk5 {
   background: linear-gradient(135deg, #0c1629, #1b2f5a, #0c1629);
 }
+
+/* 블록 색상을 대비가 강한 포인트 컬러로 변경 */
+/* 1번 블록: 밝은 노랑 (Yellow Neon) */
 body.theme-normal.theme-hsk5 .color-1 {
-  background: linear-gradient(135deg, #00f2fe, #4facfe);
+  background: linear-gradient(135deg, #fff700, #ffb800);
+  box-shadow: 0 0 10px rgba(255, 247, 0, 0.5);
 }
+
+/* 2번 블록: 비비드 오렌지 (Orange Neon) */
 body.theme-normal.theme-hsk5 .color-2 {
-  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  background: linear-gradient(135deg, #ff8c00, #e67e22);
+  box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
 }
+
+/* 3번 블록: 핫핑크 (Hot Pink Neon) */
 body.theme-normal.theme-hsk5 .color-3 {
-  background: linear-gradient(135deg, #89f7fe, #66a6ff);
+  background: linear-gradient(135deg, #ff00ff, #d63384);
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
 }
 
 /* 노말 모드 - HSK 6급 (보라/석양 테마) */
