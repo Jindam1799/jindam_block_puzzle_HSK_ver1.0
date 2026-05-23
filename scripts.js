@@ -81,8 +81,11 @@ document
 document.addEventListener('keydown', initStartScreen);
 
 // ==========================================
-// ★ 랭킹 (로컬스토리지) 시스템 ★
+// ★ 랭킹 (로컬스토리지) 6분할 시스템 ★
 // ==========================================
+let currentRankMode = 'normal';
+let currentRankLevel = 'hsk4';
+
 function saveRanking() {
   const nicknameInput = document.getElementById('nickname-input');
   const nickname = nicknameInput.value.trim();
@@ -99,18 +102,19 @@ function saveRanking() {
     date: new Date().toLocaleDateString(),
     isPlayer: true,
   };
-  let playerRankings =
-    JSON.parse(localStorage.getItem(`player_rankings_${gameMode}`)) || [];
+
+  // ★ 모드와 급수를 합친 독립적인 키로 저장 ★
+  const storageKey = `player_rankings_${gameMode}_${gameLevel}`;
+  let playerRankings = JSON.parse(localStorage.getItem(storageKey)) || [];
+
   playerRankings.push(newRecord);
   playerRankings.sort((a, b) => b.score - a.score);
   playerRankings = playerRankings.slice(0, 50);
-  localStorage.setItem(
-    `player_rankings_${gameMode}`,
-    JSON.stringify(playerRankings),
-  );
+
+  localStorage.setItem(storageKey, JSON.stringify(playerRankings));
 
   document.getElementById('game-over-modal').classList.remove('active');
-  showRankingScreen(gameMode);
+  showRankingScreen(gameMode, gameLevel);
 }
 
 function closeAlertModal() {
@@ -118,12 +122,26 @@ function closeAlertModal() {
   document.getElementById('nickname-input').focus();
 }
 
-function showRankingScreen(modeToOpen) {
+// 랭킹 화면 열기
+function showRankingScreen(modeToOpen = 'normal', levelToOpen = 'hsk4') {
   document.getElementById('lobby-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'none';
   document.getElementById('ranking-screen').style.display = 'flex';
   playBGM('leaderboard');
-  renderRankingList(modeToOpen);
+
+  currentRankMode = modeToOpen;
+  currentRankLevel = levelToOpen;
+  renderRankingList();
+}
+
+// 랭킹 탭 전환 함수
+function changeRankMode(mode) {
+  currentRankMode = mode;
+  renderRankingList();
+}
+function changeRankLevel(level) {
+  currentRankLevel = level;
+  renderRankingList();
 }
 
 const AI_RIVALS = {
@@ -133,61 +151,48 @@ const AI_RIVALS = {
   ],
   hell: [
     { name: '사마의', baseScore: 250000, combo: 35, isPlayer: false },
-    {
-      name: '진시황',
-      baseScore: 210000,
-      combo: 28,
-      isPlayer: false,
-    },
+    { name: '진시황', baseScore: 210000, combo: 28, isPlayer: false },
   ],
 };
 
-function growAIRivals(mode) {
-  let rivals = JSON.parse(localStorage.getItem(`ai_rivals_${mode}`));
+function growAIRivals(mode, level) {
+  const storageKey = `ai_rivals_${mode}_${level}`;
+  let rivals = JSON.parse(localStorage.getItem(storageKey));
 
   if (!rivals) {
     rivals = AI_RIVALS[mode].map((r) => ({ ...r, currentScore: r.baseScore }));
   } else {
-    // 1. 현재 플레이어의 최고 점수 가져오기
     let playerRankings =
-      JSON.parse(localStorage.getItem(`player_rankings_${mode}`)) || [];
+      JSON.parse(localStorage.getItem(`player_rankings_${mode}_${level}`)) ||
+      [];
     let playerBestScore =
       playerRankings.length > 0 ? playerRankings[0].score : 0;
 
-    // index 0: 1등 AI (제갈공명 / 사마의)
-    // index 1: 2등 AI (이소룡 / 진시황)
     rivals.forEach((r, index) => {
       let playChance = 0;
       let scoreIncrease = 0;
-
       if (index === 0) {
-        // [1등 AI 성향] 여유 10% / 분노 40% (점수 증가폭: 2500 ~ 7490)
         playChance = r.currentScore > playerBestScore ? 0.1 : 0.4;
         scoreIncrease = (Math.floor(Math.random() * 500) + 250) * 10;
       } else {
-        // [2등 AI 성향] 꾸준함 15% / 분노 30% (점수 증가폭: 1500 ~ 4490 - 조금씩 오름)
         playChance = r.currentScore > playerBestScore ? 0.15 : 0.3;
         scoreIncrease = (Math.floor(Math.random() * 300) + 150) * 10;
       }
-
-      // 확률에 당첨되었을 때만(AI가 게임을 했을 때만) 점수 증가
       if (Math.random() < playChance) {
         r.currentScore += scoreIncrease;
-
-        // 5% 확률로 최대 콤보 기록도 갱신
         if (Math.random() < 0.05) r.combo += 1;
       }
     });
   }
-
-  localStorage.setItem(`ai_rivals_${mode}`, JSON.stringify(rivals));
+  localStorage.setItem(storageKey, JSON.stringify(rivals));
 }
 
-function getAIRivals(mode) {
-  let rivals = JSON.parse(localStorage.getItem(`ai_rivals_${mode}`));
+function getAIRivals(mode, level) {
+  const storageKey = `ai_rivals_${mode}_${level}`;
+  let rivals = JSON.parse(localStorage.getItem(storageKey));
   if (!rivals) {
     rivals = AI_RIVALS[mode].map((r) => ({ ...r, currentScore: r.baseScore }));
-    localStorage.setItem(`ai_rivals_${mode}`, JSON.stringify(rivals));
+    localStorage.setItem(storageKey, JSON.stringify(rivals));
   }
   return rivals.map((r) => ({
     name: r.name,
@@ -197,19 +202,31 @@ function getAIRivals(mode) {
   }));
 }
 
-function renderRankingList(mode) {
+function renderRankingList() {
+  // 탭 UI 활성화 처리
   document
     .getElementById('tab-normal')
-    .classList.toggle('active', mode === 'normal');
+    .classList.toggle('active', currentRankMode === 'normal');
   document
     .getElementById('tab-hell')
-    .classList.toggle('active', mode === 'hell');
+    .classList.toggle('active', currentRankMode === 'hell');
+  document
+    .getElementById('tab-rank-hsk4')
+    .classList.toggle('active', currentRankLevel === 'hsk4');
+  document
+    .getElementById('tab-rank-hsk5')
+    .classList.toggle('active', currentRankLevel === 'hsk5');
+  document
+    .getElementById('tab-rank-hsk6')
+    .classList.toggle('active', currentRankLevel === 'hsk6');
 
   const listEl = document.getElementById('ranking-list');
   listEl.innerHTML = '';
-  let playerRankings =
-    JSON.parse(localStorage.getItem(`player_rankings_${mode}`)) || [];
-  let aiRankings = getAIRivals(mode);
+
+  // 선택된 탭의 독립된 랭킹 데이터 불러오기
+  const storageKey = `player_rankings_${currentRankMode}_${currentRankLevel}`;
+  let playerRankings = JSON.parse(localStorage.getItem(storageKey)) || [];
+  let aiRankings = getAIRivals(currentRankMode, currentRankLevel);
 
   let combinedRankings = [...playerRankings, ...aiRankings];
   combinedRankings.sort((a, b) => b.score - a.score);
@@ -224,8 +241,6 @@ function renderRankingList(mode) {
   combinedRankings.forEach((record, index) => {
     const li = document.createElement('li');
     li.className = 'ranking-item';
-
-    // 등수별 메달 색상
     let rankColor =
       index === 0
         ? '#ffd700'
@@ -234,23 +249,11 @@ function renderRankingList(mode) {
           : index === 2
             ? '#cd7f32'
             : '#fff';
-
-    // ★ AI 가독성 개선: 기존 #888에서 밝은 은회색(#e0e0e0)으로 변경 및 그림자 추가 ★
     const nameColor = record.isPlayer ? '#00ffcc' : '#e0e0e0';
     const nameShadow = record.isPlayer
       ? 'text-shadow: 0 0 10px #00ffcc;'
-      : 'text-shadow: 0 0 5px rgba(255,255,255,0.4);'; // AI에게도 부드러운 그림자 부여
-
-    li.innerHTML = `
-        <div>
-            <span style="display:inline-block; width: 35px; color:${rankColor}; font-weight:900; font-size:15pt;">${index + 1}.</span> 
-            <span style="font-size: 13pt; font-weight: bold; color: ${nameColor}; ${nameShadow}">${record.name}</span>
-        </div>
-        <div class="rank-info">
-            <span class="rank-score" style="color:${rankColor};">${record.score.toLocaleString()} 점</span>
-            <span class="rank-combo">MAX ${record.combo} COMBO</span>
-        </div>
-    `;
+      : 'text-shadow: 0 0 5px rgba(255,255,255,0.4);';
+    li.innerHTML = `<div><span style="display:inline-block; width: 35px; color:${rankColor}; font-weight:900; font-size:15pt;">${index + 1}.</span> <span style="font-size: 13pt; font-weight: bold; color: ${nameColor}; ${nameShadow}">${record.name}</span></div><div class="rank-info"><span class="rank-score" style="color:${rankColor};">${record.score.toLocaleString()} 점</span><span class="rank-combo">MAX ${record.combo} COMBO</span></div>`;
     listEl.appendChild(li);
   });
 }
@@ -259,6 +262,36 @@ function returnToLobby() {
   document.getElementById('ranking-screen').style.display = 'none';
   document.getElementById('lobby-screen').style.display = 'flex';
   playBGM('intro');
+}
+
+let pendingGameMode = ''; // 유저가 선택한 모드 임시 저장
+let gameLevel = 'hsk4'; // HSK 급수 저장
+
+// 급수 모달 열기
+function openHSKModal(mode) {
+  pendingGameMode = mode;
+  document.getElementById('hsk-modal').classList.add('active');
+  if (mode === 'hell') {
+    document.getElementById('hsk-modal-title').innerText =
+      'HELL 🔥: 도전할 급수를 선택하라';
+    document.getElementById('hsk-modal-title').style.color = '#ff3333';
+  } else {
+    document.getElementById('hsk-modal-title').innerText =
+      'NORMAL: 도전할 급수를 선택하라';
+    document.getElementById('hsk-modal-title').style.color = '#00ffcc';
+  }
+}
+
+// 급수 모달 닫기
+function closeHSKModal() {
+  document.getElementById('hsk-modal').classList.remove('active');
+}
+
+// 급수 최종 선택 및 게임 시작
+function selectHSK(level) {
+  gameLevel = level;
+  closeHSKModal();
+  startGame(pendingGameMode, gameLevel);
 }
 
 // ==========================================
@@ -276,8 +309,9 @@ let gameMode = 'normal';
 let currentCombo = 0;
 let maxComboThisRound = 0;
 let linesClearedThisRound = 0;
-let currentQuiz = null; // 현재 출제된 문제를 저장할 변수
-let availableQuizzes = []; // ★ 퀴즈 중복 출제 방지를 위한 남은 문제 배열
+
+let currentQuiz = null;
+let availableQuizzes = [];
 const GOOD_BLOCKS = [
   [[1, 1, 1, 1]],
   [[1], [1], [1], [1]],
@@ -443,24 +477,32 @@ const HARD_BLOCKS = [
   ],
 ];
 
-function startGame(mode) {
+function startGame(mode, level) {
   gameMode = mode;
+  gameLevel = level;
+
   document.getElementById('lobby-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
 
+  // ★ 모드 + 급수 테마 동시 적용 ★
+  document.body.className = ''; // 기존 클래스 리셋
+  document.body.classList.add(`theme-${mode}`);
+  document.body.classList.add(`theme-${level}`);
+
+  const levelText = level.toUpperCase().replace('HSK', 'HSK '); // "HSK 4"
   if (mode === 'hell') {
-    document.body.classList.add('hell-theme');
-    document.getElementById('mode-display').innerText = 'HELL 🔥';
+    document.getElementById('mode-display').innerText =
+      `HELL 🔥 [${levelText}]`;
     document.getElementById('mode-display').style.color = '#ff003c';
   } else {
-    document.body.classList.remove('hell-theme');
-    document.getElementById('mode-display').innerText = 'NORMAL';
-    document.getElementById('mode-display').style.color = '#ff00ff';
+    document.getElementById('mode-display').innerText = `NORMAL [${levelText}]`;
+    document.getElementById('mode-display').style.color = '#00ffcc';
   }
 
   playBGM(mode);
   const boardWrapper = document.getElementById('board-wrapper');
   if (boardWrapper) boardWrapper.style.filter = 'none';
+
   board = Array(BOARD_SIZE)
     .fill(null)
     .map(() => Array(BOARD_SIZE).fill(0));
@@ -468,7 +510,9 @@ function startGame(mode) {
   currentCombo = 0;
   maxComboThisRound = 0;
   linesClearedThisRound = 0;
-  availableQuizzes = []; // ★ 새 게임 시작 시 문제 덱 초기화 추가 ★
+
+  availableQuizzes = []; // 새 게임 시작 시 문제 덱 초기화
+
   initBoardHTML();
   generateDockBlocks();
   setupTouchEvents();
@@ -505,7 +549,7 @@ function renderBoard() {
   document.getElementById('score').innerText = score;
 }
 // ==========================================
-// ★ 퀴즈 시스템 (힌트 보기 & 중복 방지 로직) ★
+// ★ 퀴즈 시스템 (HSK 급수별 데이터 분기) ★
 // ==========================================
 function triggerNewQuiz() {
   const modal = document.getElementById('quiz-modal');
@@ -514,14 +558,17 @@ function triggerNewQuiz() {
   const pinyinDisplay = document.getElementById('quiz-pinyin');
 
   feedback.innerText = '';
-
-  // 팝업이 뜰 때마다 힌트 상태 초기화
   hintBtn.style.display = 'inline-block';
   pinyinDisplay.style.display = 'none';
 
-  // ★ 중복 방지 로직: 남은 문제가 없으면 원본 데이터를 복사하고 무작위로 섞음 (피셔-예이츠 셔플) ★
-  if (availableQuizzes.length === 0) {
-    availableQuizzes = [...QUIZ_DATA]; // 데이터 복사
+  // 아직 data.js가 준비되지 않았을 경우 에러 방지용 안전 코드
+  if (!window.QUIZ_DATA) window.QUIZ_DATA = { hsk4: [], hsk5: [], hsk6: [] };
+
+  // 현재 게임 급수(gameLevel)에 해당하는 데이터 배열 확보
+  const currentLevelData = window.QUIZ_DATA[gameLevel] || [];
+
+  if (availableQuizzes.length === 0 && currentLevelData.length > 0) {
+    availableQuizzes = [...currentLevelData];
     for (let i = availableQuizzes.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [availableQuizzes[i], availableQuizzes[j]] = [
@@ -530,10 +577,17 @@ function triggerNewQuiz() {
       ];
     }
   }
-
-  // 섞여 있는 배열의 맨 끝에서 문제를 하나씩 뽑아 출제 (한 바퀴 돌 때까지 중복 절대 불가)
-  currentQuiz = availableQuizzes.pop();
-
+  // 데이터가 없을 때의 예외 처리 (테스트용)
+  if (availableQuizzes.length === 0) {
+    currentQuiz = {
+      q: '데이터 없음',
+      pinyin: '-',
+      a: '확인',
+      options: ['확인', '준비중', '테스트'],
+    };
+  } else {
+    currentQuiz = availableQuizzes.pop();
+  }
   document.getElementById('quiz-question').innerText = currentQuiz.q;
   pinyinDisplay.innerText = currentQuiz.pinyin;
 
@@ -545,12 +599,11 @@ function triggerNewQuiz() {
     btn.className = 'option-btn';
     btn.innerText = opt;
     btn.onclick = () => {
-      // 더블 클릭 방지
       const allBtns = optionsContainer.querySelectorAll('button');
       allBtns.forEach((b) => (b.disabled = true));
 
       if (opt === currentQuiz.a) {
-        playCorrectSound(); // 정답 효과음 재생
+        playCorrectSound();
         feedback.innerText = '정답입니다!';
         feedback.style.color = '#00ff00';
         setTimeout(() => {
@@ -558,7 +611,7 @@ function triggerNewQuiz() {
           generateDockBlocks();
         }, 700);
       } else {
-        playWrongSound(); // 오답 효과음 재생
+        playWrongSound();
         feedback.innerText =
           gameMode === 'hell'
             ? '오답! 장애물 최대 6개 투하!'
@@ -577,10 +630,9 @@ function triggerNewQuiz() {
   });
 
   modal.classList.add('active');
-  playQuizPopupSound(); // 퀴즈 등장 효과음 재생
+  playQuizPopupSound();
 }
 
-// 힌트 버튼 클릭 시 실행되는 함수
 function showHint() {
   document.getElementById('hint-btn').style.display = 'none';
   document.getElementById('quiz-pinyin').style.display = 'block';
@@ -1055,7 +1107,7 @@ function checkGameOverCondition() {
   // 블록은 남아있는데 더 이상 둘 곳이 없는 경우 (게임 오버 트래킹)
   if (activeBlocksCount > 0 && placeableBlocksCount === 0) {
     // AI 점수 성장 작동
-    growAIRivals(gameMode);
+    growAIRivals(gameMode, gameLevel);
 
     // 1. 보드판 전체를 흐리게 만들고 타격감 차단 처리 효과 (CSS 필터 활용)
     const boardWrapper = document.getElementById('board-wrapper');
