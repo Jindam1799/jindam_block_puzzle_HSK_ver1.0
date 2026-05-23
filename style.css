@@ -548,7 +548,7 @@ header {
   height: 24px;
 }
 
-/* ★ 콤보 & 다중 라인 ボーナス 텍스트 스타일 ★ */
+/* �� 肄ㅻ낫 & �ㅼ쨷 �쇱씤 �쒌꺖�듽궧 �띿뒪�� �ㅽ��� �� */
 .combo-text {
   position: absolute;
   top: 40%;
@@ -580,7 +580,7 @@ header {
   margin-bottom: 5px;
 }
 
-/* ★ 올 클리어 황금빛 이펙트 ★ */
+/* �� �� �대━�� �⑷툑鍮� �댄럺�� �� */
 .all-clear-text {
   position: absolute;
   top: 35%;
@@ -673,4 +673,138 @@ body.hell-theme .combo-text {
 }
 body.hell-theme .flash-active {
   animation: flashLightHell 0.6s ease-out forwards;
+}
+
+/* ========================================== */
+/* ★ HSK 급수별 다이나믹 테마 시스템 ★ */
+/* ========================================== */
+
+/* 노말 모드 - HSK 4급 (초록/자연 테마) */
+body.theme-normal.theme-hsk4 {
+  background: linear-gradient(135deg, #0f2015, #1b3a26, #0f2015);
+}
+body.theme-normal.theme-hsk4 .color-1 {
+  background: linear-gradient(135deg, #a8e063, #56ab2f);
+}
+body.theme-normal.theme-hsk4 .color-2 {
+  background: linear-gradient(135deg, #fceabb, #f8b500);
+}
+body.theme-normal.theme-hsk4 .color-3 {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+}
+
+/* 노말 모드 - HSK 5급 (파랑/바다 테마) */
+body.theme-normal.theme-hsk5 {
+  background: linear-gradient(135deg, #0c1629, #1b2f5a, #0c1629);
+}
+body.theme-normal.theme-hsk5 .color-1 {
+  background: linear-gradient(135deg, #00f2fe, #4facfe);
+}
+body.theme-normal.theme-hsk5 .color-2 {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+}
+body.theme-normal.theme-hsk5 .color-3 {
+  background: linear-gradient(135deg, #89f7fe, #66a6ff);
+}
+
+/* 노말 모드 - HSK 6급 (보라/석양 테마) */
+body.theme-normal.theme-hsk6 {
+  background: linear-gradient(135deg, #180c29, #351b5a, #180c29);
+}
+body.theme-normal.theme-hsk6 .color-1 {
+  background: linear-gradient(135deg, #b06ab3, #4568dc);
+}
+body.theme-normal.theme-hsk6 .color-2 {
+  background: linear-gradient(135deg, #ff0844, #ffb199);
+}
+body.theme-normal.theme-hsk6 .color-3 {
+  background: linear-gradient(135deg, #f6d365, #fda085);
+}
+
+/* ------------------------------------------ */
+/* 헬 모드: 가독성을 위해 배경은 칠흑으로 누르고 블록은 네온 발광 효과 */
+
+/* 헬 모드 - HSK 4급 (맹독 늪지 테마) */
+body.theme-hell.theme-hsk4 {
+  background: linear-gradient(135deg, #051005, #102010, #000000);
+}
+body.theme-hell.theme-hsk4 #board-wrapper {
+  border-color: #39ff14;
+  box-shadow: 0 0 20px rgba(57, 255, 20, 0.2);
+}
+body.theme-hell.theme-hsk4 .color-1 {
+  background: linear-gradient(135deg, #39ff14, #228b22);
+  box-shadow: 0 0 10px #39ff14;
+  border: 1px solid #fff;
+}
+body.theme-hell.theme-hsk4 .color-2 {
+  background: linear-gradient(135deg, #ccff00, #99cc00);
+  box-shadow: 0 0 10px #ccff00;
+  border: 1px solid #fff;
+}
+body.theme-hell.theme-hsk4 .color-3 {
+  background: linear-gradient(135deg, #00ffcc, #009999);
+  box-shadow: 0 0 10px #00ffcc;
+  border: 1px solid #fff;
+}
+
+/* 헬 모드 - HSK 5급 (심해 어둠 테마) */
+body.theme-hell.theme-hsk5 {
+  background: linear-gradient(135deg, #000510, #051020, #000000);
+}
+body.theme-hell.theme-hsk5 #board-wrapper {
+  border-color: #00ffff;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+}
+body.theme-hell.theme-hsk5 .color-1 {
+  background: linear-gradient(135deg, #00ffff, #0088ff);
+  box-shadow: 0 0 10px #00ffff;
+  border: 1px solid #fff;
+}
+body.theme-hell.theme-hsk5 .color-2 {
+  background: linear-gradient(135deg, #ff00ff, #8800ff);
+  box-shadow: 0 0 10px #ff00ff;
+  border: 1px solid #fff;
+}
+body.theme-hell.theme-hsk5 .color-3 {
+  background: linear-gradient(135deg, #ffffff, #88ccff);
+  box-shadow: 0 0 10px #ffffff;
+  border: 1px solid #fff;
+}
+
+/* 헬 모드 - HSK 6급 (지옥불 테마 - 빨간 배경/블록 분리 개선) */
+body.theme-hell.theme-hsk6 {
+  background: linear-gradient(135deg, #100000, #200505, #000000);
+}
+body.theme-hell.theme-hsk6 #board-wrapper {
+  border-color: #ff3300;
+  box-shadow: 0 0 20px rgba(255, 51, 0, 0.2);
+  background: rgba(30, 0, 0, 0.4);
+}
+body.theme-hell.theme-hsk6 .color-1 {
+  background: linear-gradient(135deg, #ff1493, #8b0000);
+  box-shadow: 0 0 10px #ff1493;
+  border: 1px solid #fff;
+} /* 핫핑크/검붉은색 */
+body.theme-hell.theme-hsk6 .color-2 {
+  background: linear-gradient(135deg, #ffaa00, #cc5500);
+  box-shadow: 0 0 10px #ffaa00;
+  border: 1px solid #fff;
+} /* 황금/주황색 */
+body.theme-hell.theme-hsk6 .color-3 {
+  background: linear-gradient(135deg, #ff0000, #990000);
+  box-shadow: 0 0 10px #ff0000;
+  border: 1px solid #fff;
+} /* 선명한 빨강 */
+body.theme-hell.theme-hsk6 .cell-obstacle {
+  background: #111;
+  color: #ff3300;
+  border-color: #ff3300;
+}
+body.theme-hell.theme-hsk6 .combo-text {
+  color: #ff3300;
+  text-shadow:
+    0 0 10px #fff,
+    0 0 20px #ff0000,
+    0 0 40px #ff3300;
 }
