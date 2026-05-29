@@ -800,7 +800,10 @@ function setupTouchEvents() {
 
         clearFullLines(() => {
           if (currentDockBlocks.every((b) => b === null)) {
-            if (linesClearedThisRound === 0) currentCombo = 0;
+            if (linesClearedThisRound === 0) {
+              currentCombo = 0;
+              isDoubleScoreActive = false; // ★ 줄을 하나도 못 지워서 콤보가 끊기면 버프 해제! ★
+            }
             linesClearedThisRound = 0;
             setTimeout(() => triggerNewQuiz(), 300);
           } else {
@@ -1021,13 +1024,12 @@ function clearFullLines(onComplete) {
       const baseScore = gameMode === 'hell' ? 300 : 150;
       let earnedScore = totalCleared * baseScore * currentCombo;
 
-      // ★ 점수 x2 버프 적용 ★
+      // ★ 점수 x2 버프 적용 (콤보 유지 시 계속 적용) ★
       if (isDoubleScoreActive) {
         earnedScore *= 2;
-        isDoubleScoreActive = false;
-        updateInventoryUI();
+        // isDoubleScoreActive = false; <- 이 부분이 삭제되어 계속 유지됩니다!
         document.getElementById('combo-display').innerHTML +=
-          '<br><span style="color:#ff00ff; font-size:14pt;">x2 버프 발동!</span>';
+          '<br><span style="color:#ff00ff; font-size:14pt;">x2 버프 유지 중!</span>';
       }
 
       score += earnedScore;
@@ -1320,7 +1322,6 @@ function playBuffSound() {
   osc.start();
   osc.stop(audioCtx.currentTime + 0.6);
 }
-
 // ==========================================
 // ★ 통합된 퀴즈 시스템 (일반 + 보너스) ★
 // ==========================================
@@ -1400,8 +1401,6 @@ function triggerNewQuiz() {
         penaltyPopup.className = 'penalty-popup-text';
         penaltyPopup.innerText = '-500';
         document.body.appendChild(penaltyPopup);
-
-        // 애니메이션(1.2초)이 끝나면 쓰레기(DOM) 치우기
         setTimeout(() => penaltyPopup.remove(), 1200);
 
         feedback.innerText =
@@ -1409,8 +1408,10 @@ function triggerNewQuiz() {
             ? '오답! 장애물 최대 6개 투하!'
             : '오답! 장애물 1개 투하!';
         feedback.style.color = '#ff3333';
+
         currentCombo = 0;
         linesClearedThisRound = 0;
+        isDoubleScoreActive = false; // ★ 오답으로 콤보가 끊기면 2배 버프도 해제! ★
 
         setTimeout(() => {
           modal.classList.remove('active');
@@ -1418,9 +1419,9 @@ function triggerNewQuiz() {
           generateDockBlocks();
         }, 1000);
       }
-    };
-    optionsContainer.appendChild(btn);
-  });
+    }; // ★ 누락되었던 btn.onclick 닫는 괄호 복구
+    optionsContainer.appendChild(btn); // ★ 누락되었던 버튼 생성 코드 복구
+  }); // ★ 누락되었던 forEach 닫는 괄호 복구
 
   modal.classList.add('active');
   playQuizPopupSound();
