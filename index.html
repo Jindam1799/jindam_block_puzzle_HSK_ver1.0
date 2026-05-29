@@ -241,6 +241,51 @@
         </div>
       </div>
 
+      <div
+        id="inventory-container"
+        style="
+          display: flex;
+          gap: 10px;
+          margin-top: 10px;
+          justify-content: center;
+        "
+      >
+        <button class="item-btn" onclick="useBomb()">
+          💣 폭탄 (<span id="item-bomb-cnt">0</span>)
+        </button>
+        <button class="item-btn" onclick="useReroll()">
+          🔄 블록리롤 (<span id="item-reroll-cnt">0</span>)
+        </button>
+        <button class="item-btn" onclick="useDoubleScore()">
+          ⭐ 점수x2 (<span id="item-double-cnt">0</span>)
+        </button>
+      </div>
+
+      <div id="item-selection-modal" class="modal">
+        <div class="modal-content" style="border-color: #ffd700">
+          <h2 style="color: #ffd700; font-size: 24pt">🎁 보너스 획득!</h2>
+          <p>원하는 아이템을 선택하세요.</p>
+          <div
+            style="
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+              margin-top: 20px;
+            "
+          >
+            <button class="option-btn" onclick="selectItem('bomb')">
+              💣 폭탄 (3x3 제거)
+            </button>
+            <button class="option-btn" onclick="selectItem('reroll')">
+              🔄 남은 블록 새로 받기
+            </button>
+            <button class="option-btn" onclick="selectItem('doubleScore')">
+              ⭐ 다음 콤보 점수 2배
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- 닉네임 입력 팝업 및 기타 모달들 -->
       <div id="game-over-modal" class="modal" style="z-index: 400">
         <div
@@ -312,8 +357,7 @@
               color: #fff;
             "
           >
-            이름을 남겨주세요!<br /><span
-              style="font-size: 11pt; color: #aaa"
+            이름을 남겨주세요!<br /><span style="font-size: 11pt; color: #aaa"
               >(닉네임을 입력해주세요)</span
             >
           </p>
