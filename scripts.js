@@ -103,7 +103,6 @@ function saveRanking() {
     isPlayer: true,
   };
 
-  // ★ 모드와 급수를 합친 독립적인 키로 저장 ★
   const storageKey = `player_rankings_${gameMode}_${gameLevel}`;
   let playerRankings = JSON.parse(localStorage.getItem(storageKey)) || [];
 
@@ -122,7 +121,6 @@ function closeAlertModal() {
   document.getElementById('nickname-input').focus();
 }
 
-// 랭킹 화면 열기
 function showRankingScreen(modeToOpen = 'normal', levelToOpen = 'hsk4') {
   document.getElementById('lobby-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'none';
@@ -134,7 +132,6 @@ function showRankingScreen(modeToOpen = 'normal', levelToOpen = 'hsk4') {
   renderRankingList();
 }
 
-// 랭킹 탭 전환 함수
 function changeRankMode(mode) {
   currentRankMode = mode;
   renderRankingList();
@@ -203,7 +200,6 @@ function getAIRivals(mode, level) {
 }
 
 function renderRankingList() {
-  // 탭 UI 활성화 처리
   document
     .getElementById('tab-normal')
     .classList.toggle('active', currentRankMode === 'normal');
@@ -223,7 +219,6 @@ function renderRankingList() {
   const listEl = document.getElementById('ranking-list');
   listEl.innerHTML = '';
 
-  // 선택된 탭의 독립된 랭킹 데이터 불러오기
   const storageKey = `player_rankings_${currentRankMode}_${currentRankLevel}`;
   let playerRankings = JSON.parse(localStorage.getItem(storageKey)) || [];
   let aiRankings = getAIRivals(currentRankMode, currentRankLevel);
@@ -264,10 +259,9 @@ function returnToLobby() {
   playBGM('intro');
 }
 
-let pendingGameMode = ''; // 유저가 선택한 모드 임시 저장
-let gameLevel = 'hsk4'; // HSK 급수 저장
+let pendingGameMode = '';
+let gameLevel = 'hsk4';
 
-// 급수 모달 열기
 function openHSKModal(mode) {
   pendingGameMode = mode;
   document.getElementById('hsk-modal').classList.add('active');
@@ -282,12 +276,10 @@ function openHSKModal(mode) {
   }
 }
 
-// 급수 모달 닫기
 function closeHSKModal() {
   document.getElementById('hsk-modal').classList.remove('active');
 }
 
-// 급수 최종 선택 및 게임 시작
 function selectHSK(level) {
   gameLevel = level;
   closeHSKModal();
@@ -295,7 +287,7 @@ function selectHSK(level) {
 }
 
 // ==========================================
-// ★ 게임 코어 시스템 ★
+// ★ 게임 코어 변수 및 블록 데이터 ★
 // ==========================================
 const BOARD_SIZE = 8;
 let board = Array(BOARD_SIZE)
@@ -310,8 +302,16 @@ let currentCombo = 0;
 let maxComboThisRound = 0;
 let linesClearedThisRound = 0;
 
+// ★ 특수 기능 관련 변수 ★
+let isSpecialBlockSpawned = false;
+let nextQuizIsBonus = false;
+let playerItems = { bomb: 0, reroll: 0, doubleScore: 0 };
+let isBombActive = false;
+let isDoubleScoreActive = false;
+
 let currentQuiz = null;
 let availableQuizzes = [];
+
 const GOOD_BLOCKS = [
   [[1, 1, 1, 1]],
   [[1], [1], [1], [1]],
@@ -319,7 +319,6 @@ const GOOD_BLOCKS = [
     [1, 1],
     [1, 1],
   ],
-
   [[1, 1, 1]],
   [[1], [1], [1]],
   [
@@ -384,7 +383,6 @@ const NORMAL_BLOCKS = [
   ],
   [[1, 1, 1, 1, 1]],
   [[1], [1], [1], [1], [1]],
-
   [
     [1, 1, 1],
     [1, 0, 0],
@@ -403,7 +401,6 @@ const NORMAL_BLOCKS = [
     [0, 1],
     [1, 1],
   ],
-
   [
     [0, 1],
     [1, 1],
@@ -477,6 +474,9 @@ const HARD_BLOCKS = [
   ],
 ];
 
+// ==========================================
+// ★ 초기화 및 메인 게임 루프 ★
+// ==========================================
 function startGame(mode, level) {
   gameMode = mode;
   gameLevel = level;
@@ -484,12 +484,11 @@ function startGame(mode, level) {
   document.getElementById('lobby-screen').style.display = 'none';
   document.getElementById('game-container').style.display = 'flex';
 
-  // ★ 모드 + 급수 테마 동시 적용 ★
-  document.body.className = ''; // 기존 클래스 리셋
+  document.body.className = '';
   document.body.classList.add(`theme-${mode}`);
   document.body.classList.add(`theme-${level}`);
 
-  const levelText = level.toUpperCase().replace('HSK', 'HSK '); // "HSK 4"
+  const levelText = level.toUpperCase().replace('HSK', 'HSK ');
   if (mode === 'hell') {
     document.getElementById('mode-display').innerText =
       `HELL 🔥 [${levelText}]`;
@@ -506,12 +505,20 @@ function startGame(mode, level) {
   board = Array(BOARD_SIZE)
     .fill(null)
     .map(() => Array(BOARD_SIZE).fill(0));
+
+  // 변수 완전 초기화
+  isSpecialBlockSpawned = false;
+  nextQuizIsBonus = false;
+  playerItems = { bomb: 0, reroll: 0, doubleScore: 0 };
+  isBombActive = false;
+  isDoubleScoreActive = false;
+  updateInventoryUI();
   score = 0;
   currentCombo = 0;
   maxComboThisRound = 0;
   linesClearedThisRound = 0;
 
-  availableQuizzes = []; // 새 게임 시작 시 문제 덱 초기화
+  availableQuizzes = [];
 
   initBoardHTML();
   generateDockBlocks();
@@ -526,6 +533,12 @@ function initBoardHTML() {
       const cellEl = document.createElement('div');
       cellEl.className = 'grid-cell';
       cellEl.id = `cell-${r}-${c}`;
+
+      // ★ 폭탄 이벤트 바인딩 ★
+      cellEl.onmouseover = () => handleBombHover(r, c, true);
+      cellEl.onmouseout = () => handleBombHover(r, c, false);
+      cellEl.onclick = () => handleCellClickForBomb(r, c);
+
       boardEl.appendChild(cellEl);
     }
   }
@@ -538,9 +551,25 @@ function renderBoard() {
       const cellEl = document.getElementById(`cell-${r}-${c}`);
       cellEl.className = 'grid-cell';
       cellEl.innerText = '';
+      cellEl.style.fontSize = '';
+      cellEl.style.display = '';
+      cellEl.style.justifyContent = '';
+      cellEl.style.alignItems = '';
+
       const val = board[r][c];
-      if (val >= 1 && val <= 3) cellEl.classList.add(`color-${val}`);
-      else if (val >= 11) {
+
+      if (val >= 1 && val <= 4) {
+        cellEl.classList.add(`color-${val}`);
+
+        if (val === 4) {
+          // 보너스 블록
+          cellEl.innerText = '🎁';
+          cellEl.style.fontSize = '24px';
+          cellEl.style.display = 'flex';
+          cellEl.style.justifyContent = 'center';
+          cellEl.style.alignItems = 'center';
+        }
+      } else if (val >= 11) {
         cellEl.classList.add('cell-obstacle');
         cellEl.innerText = val - 10;
       }
@@ -548,99 +577,15 @@ function renderBoard() {
   }
   document.getElementById('score').innerText = score;
 }
+
 // ==========================================
-// ★ 퀴즈 시스템 (HSK 급수별 데이터 분기) ★
+// ★ 특수 및 방해 블록 등장 시스템 ★
 // ==========================================
-function triggerNewQuiz() {
-  const modal = document.getElementById('quiz-modal');
-  const feedback = document.getElementById('quiz-feedback');
-  const hintBtn = document.getElementById('hint-btn');
-  const pinyinDisplay = document.getElementById('quiz-pinyin');
-
-  feedback.innerText = '';
-  hintBtn.style.display = 'inline-block';
-  pinyinDisplay.style.display = 'none';
-
-  // 아직 data.js가 준비되지 않았을 경우 에러 방지용 안전 코드
-  if (!window.QUIZ_DATA) window.QUIZ_DATA = { hsk4: [], hsk5: [], hsk6: [] };
-
-  // 현재 게임 급수(gameLevel)에 해당하는 데이터 배열 확보
-  const currentLevelData = window.QUIZ_DATA[gameLevel] || [];
-
-  if (availableQuizzes.length === 0 && currentLevelData.length > 0) {
-    availableQuizzes = [...currentLevelData];
-    for (let i = availableQuizzes.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [availableQuizzes[i], availableQuizzes[j]] = [
-        availableQuizzes[j],
-        availableQuizzes[i],
-      ];
-    }
-  }
-  // 데이터가 없을 때의 예외 처리 (테스트용)
-  if (availableQuizzes.length === 0) {
-    currentQuiz = {
-      q: '데이터 없음',
-      pinyin: '-',
-      a: '확인',
-      options: ['확인', '준비중', '테스트'],
-    };
-  } else {
-    currentQuiz = availableQuizzes.pop();
-  }
-  document.getElementById('quiz-question').innerText = currentQuiz.q;
-  pinyinDisplay.innerText = currentQuiz.pinyin;
-
-  const optionsContainer = document.getElementById('quiz-options');
-  optionsContainer.innerHTML = '';
-
-  currentQuiz.options.forEach((opt) => {
-    const btn = document.createElement('button');
-    btn.className = 'option-btn';
-    btn.innerText = opt;
-    btn.onclick = () => {
-      const allBtns = optionsContainer.querySelectorAll('button');
-      allBtns.forEach((b) => (b.disabled = true));
-
-      if (opt === currentQuiz.a) {
-        playCorrectSound();
-        feedback.innerText = '정답입니다!';
-        feedback.style.color = '#00ff00';
-        setTimeout(() => {
-          modal.classList.remove('active');
-          generateDockBlocks();
-        }, 700);
-      } else {
-        playWrongSound();
-        feedback.innerText =
-          gameMode === 'hell'
-            ? '오답! 장애물 최대 6개 투하!'
-            : '오답! 장애물 1개 투하!';
-        feedback.style.color = '#ff3333';
-        currentCombo = 0;
-        linesClearedThisRound = 0;
-        setTimeout(() => {
-          modal.classList.remove('active');
-          spawnObstacleStone(gameMode);
-          generateDockBlocks();
-        }, 1000);
-      }
-    };
-    optionsContainer.appendChild(btn);
-  });
-
-  modal.classList.add('active');
-  playQuizPopupSound();
-}
-
-function showHint() {
-  document.getElementById('hint-btn').style.display = 'none';
-  document.getElementById('quiz-pinyin').style.display = 'block';
-}
-
 function spawnObstacleStone(mode) {
   let totalToSpawn = mode === 'hell' ? Math.floor(Math.random() * 6) + 1 : 1;
   let spawned = 0;
+  let newlySpawnedCells = [];
+
   while (spawned < totalToSpawn) {
     let emptyCells = [];
     for (let r = 0; r < BOARD_SIZE; r++) {
@@ -683,14 +628,31 @@ function spawnObstacleStone(mode) {
     for (let cell of cluster) {
       let durability = Math.floor(Math.random() * 2) + 2;
       board[cell.r][cell.c] = 10 + durability;
+      newlySpawnedCells.push(cell);
       spawned++;
     }
   }
+
   renderBoard();
+
+  if (newlySpawnedCells.length > 0) {
+    playObstacleSpawnSound();
+    const gameContainer = document.getElementById('game-container');
+    gameContainer.classList.add('shake-active');
+    setTimeout(() => gameContainer.classList.remove('shake-active'), 400);
+
+    newlySpawnedCells.forEach((pos) => {
+      const cellEl = document.getElementById(`cell-${pos.r}-${pos.c}`);
+      if (cellEl) {
+        cellEl.classList.add('obstacle-spawn-anim');
+        setTimeout(() => cellEl.classList.remove('obstacle-spawn-anim'), 600);
+      }
+    });
+  }
 }
 
 function generateDockBlocks() {
-  const colorPool = [1, 2, 3].sort(() => Math.random() - 0.5);
+  let colorPool = [1, 2, 3].sort(() => Math.random() - 0.5);
   let normalChance = 0;
   let hardChance = 0;
 
@@ -732,7 +694,37 @@ function generateDockBlocks() {
     currentDockBlocks[i] = { matrix: blockMatrix, colorVal: colorPool[i] };
     renderDockSlot(i);
   }
+
+  spawnBonusBlockOnBoard();
   checkGameOverCondition();
+}
+
+function spawnBonusBlockOnBoard() {
+  let hasBonus = false;
+  let emptyCells = [];
+
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (board[r][c] === 4) hasBonus = true;
+      if (board[r][c] === 0) emptyCells.push({ r, c });
+    }
+  }
+
+  if (hasBonus || emptyCells.length === 0 || Math.random() >= 0.1) return;
+
+  let randCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+  board[randCell.r][randCell.c] = 4;
+
+  renderBoard();
+
+  playBonusSpawnSound();
+  const bonusCellEl = document.getElementById(
+    `cell-${randCell.r}-${randCell.c}`,
+  );
+  if (bonusCellEl) {
+    bonusCellEl.classList.add('bonus-spawn-anim');
+    setTimeout(() => bonusCellEl.classList.remove('bonus-spawn-anim'), 800);
+  }
 }
 
 function renderDockSlot(slotIndex) {
@@ -756,6 +748,9 @@ function renderDockSlot(slotIndex) {
   slotEl.appendChild(table);
 }
 
+// ==========================================
+// ★ 드래그 앤 드롭 시스템 ★
+// ==========================================
 function setupTouchEvents() {
   const dockSlots = document.querySelectorAll('.dock-slot');
   const overlay = document.getElementById('drag-overlay');
@@ -808,7 +803,9 @@ function setupTouchEvents() {
             if (linesClearedThisRound === 0) currentCombo = 0;
             linesClearedThisRound = 0;
             setTimeout(() => triggerNewQuiz(), 300);
-          } else checkGameOverCondition();
+          } else {
+            checkGameOverCondition();
+          }
         });
       }
     }
@@ -958,7 +955,7 @@ function clearFullLines(onComplete) {
   const totalCleared = rowsToClear.length + colsToClear.length;
 
   if (totalCleared > 0) {
-    playClearSound(); // ★ 블록 제거 타격감 사운드 재생
+    playClearSound();
 
     let previousCombo = currentCombo;
     currentCombo += totalCleared;
@@ -1012,6 +1009,8 @@ function clearFullLines(onComplete) {
 
     setTimeout(() => {
       normalCells.forEach((pos) => {
+        // ★ 특수 블록(4번 색상) 제거 시 보너스 퀴즈 예약 ★
+        if (board[pos.r][pos.c] === 4) nextQuizIsBonus = true;
         board[pos.r][pos.c] = 0;
       });
       damagedObstacles.forEach((pos) => {
@@ -1021,11 +1020,19 @@ function clearFullLines(onComplete) {
 
       const baseScore = gameMode === 'hell' ? 300 : 150;
       let earnedScore = totalCleared * baseScore * currentCombo;
+
+      // ★ 점수 x2 버프 적용 ★
+      if (isDoubleScoreActive) {
+        earnedScore *= 2;
+        isDoubleScoreActive = false;
+        updateInventoryUI();
+        document.getElementById('combo-display').innerHTML +=
+          '<br><span style="color:#ff00ff; font-size:14pt;">x2 버프 발동!</span>';
+      }
+
       score += earnedScore;
 
       showComboEffect(totalCleared, currentCombo);
-
-      // ★ 다중 라인 제거 시 연속 아르페지오 사운드 재생 ★
       playSequentialComboSounds(previousCombo + 1, totalCleared);
 
       let isAllClear = true;
@@ -1081,7 +1088,7 @@ function showAllClearEffect() {
 }
 
 // ==========================================
-// ★ 게임 오버 조건 체크 및 가시성 개선 연출 ★
+// ★ 게임 오버 조건 체크 ★
 // ==========================================
 function checkGameOverCondition() {
   let activeBlocksCount = 0;
@@ -1104,28 +1111,21 @@ function checkGameOverCondition() {
     }
   }
 
-  // 블록은 남아있는데 더 이상 둘 곳이 없는 경우 (게임 오버 트래킹)
   if (activeBlocksCount > 0 && placeableBlocksCount === 0) {
-    // AI 점수 성장 작동
     growAIRivals(gameMode, gameLevel);
 
-    // 1. 보드판 전체를 흐리게 만들고 타격감 차단 처리 효과 (CSS 필터 활용)
     const boardWrapper = document.getElementById('board-wrapper');
     if (boardWrapper) {
       boardWrapper.style.transition = 'all 1s ease';
       boardWrapper.style.filter = 'grayscale(0.6) brightness(0.5)';
     }
 
-    // 2. 콤보 표시 자리에 "배치 불가" 경고 메시지를 띄워 안내 강화
     const comboEl = document.getElementById('combo-display');
     comboEl.innerHTML = `<span style="color: #ff003c; text-shadow: 0 0 15px #ff003c; font-size: 26pt; font-weight: 900;">배치 불가!<br><span style="font-size: 16pt; color: #fff;">NO SPACE</span></span>`;
     comboEl.classList.add('show');
 
-    // 3. 바로 팝업을 띄우지 않고, 유저가 상황을 인지할 수 있도록 1.2초의 여유 시간을 준 뒤 모달 띄우기
     setTimeout(() => {
       playBGM('leaderboard');
-
-      // "배치 불가" 글씨 걷어내기
       comboEl.classList.remove('show');
 
       const gameOverModal = document.getElementById('game-over-modal');
@@ -1139,15 +1139,15 @@ function checkGameOverCondition() {
     }, 1200);
   }
 }
+
 // ==========================================
-// ★ Web Audio API 기반 커스텀 사운드 효과 ★
+// ★ Web Audio API 사운드 효과 ★
 // ==========================================
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const scaleFrequencies = [
   261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25,
-]; // 도레미파솔라시도
+];
 
-// 1. 퀴즈 등장 효과음 (띠로롱~) - 볼륨 2배 증가
 function playQuizPopupSound() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
   const osc = audioCtx.createOscillator();
@@ -1155,7 +1155,7 @@ function playQuizPopupSound() {
   osc.type = 'sine';
   osc.frequency.setValueAtTime(400, audioCtx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
-  gain.gain.setValueAtTime(1.0, audioCtx.currentTime); // 볼륨 1.0으로 상향
+  gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
   osc.connect(gain);
   gain.connect(audioCtx.destination);
@@ -1163,7 +1163,6 @@ function playQuizPopupSound() {
   osc.stop(audioCtx.currentTime + 0.3);
 }
 
-// 2. 블록 제거 타격 효과음 (파직!) - 볼륨 2.4배 증가
 function playClearSound() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
   const osc = audioCtx.createOscillator();
@@ -1171,7 +1170,7 @@ function playClearSound() {
   osc.type = 'square';
   osc.frequency.setValueAtTime(150, audioCtx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.15);
-  gain.gain.setValueAtTime(1.2, audioCtx.currentTime); // 볼륨 1.2로 상향 (강한 타격감)
+  gain.gain.setValueAtTime(1.2, audioCtx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
   osc.connect(gain);
   gain.connect(audioCtx.destination);
@@ -1179,10 +1178,8 @@ function playClearSound() {
   osc.stop(audioCtx.currentTime + 0.2);
 }
 
-// 3. 다중 라인 제거 시 아르페지오 (도-레-미 연속 재생) - 볼륨 증가
 function playSequentialComboSounds(startCombo, linesCleared) {
   if (audioCtx.state === 'suspended') audioCtx.resume();
-
   for (let i = 0; i < linesCleared; i++) {
     const currentComboCount = startCombo + i;
     const scaleIndex = (currentComboCount - 1) % 8;
@@ -1194,16 +1191,14 @@ function playSequentialComboSounds(startCombo, linesCleared) {
 
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
-    oscillator.type = 'sawtooth'; // 레트로 오락실 느낌 파형
+    oscillator.type = 'sawtooth';
 
-    // 0.15초 간격으로 스케줄링하여 아르페지오 연출
     const startTime = audioCtx.currentTime + i * 0.15;
     const stopTime = startTime + 0.4;
 
     oscillator.frequency.setValueAtTime(freq, startTime);
-
-    gainNode.gain.setValueAtTime(0.0, audioCtx.currentTime); // 시작 전엔 음소거
-    gainNode.gain.setValueAtTime(1.0, startTime); // 볼륨 1.0으로 상향
+    gainNode.gain.setValueAtTime(0.0, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(1.0, startTime);
     gainNode.gain.exponentialRampToValueAtTime(0.001, stopTime);
 
     oscillator.connect(gainNode);
@@ -1213,16 +1208,15 @@ function playSequentialComboSounds(startCombo, linesCleared) {
   }
 }
 
-// 4. 정답 효과음 (밝고 경쾌한 상승음)
 function playCorrectSound() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = 'triangle';
-  osc.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
-  osc.frequency.setValueAtTime(554.37, audioCtx.currentTime + 0.1); // C#5
-  osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.2); // E5
-  gain.gain.setValueAtTime(1.0, audioCtx.currentTime); // 볼륨 1.0
+  osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+  osc.frequency.setValueAtTime(554.37, audioCtx.currentTime + 0.1);
+  osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.2);
+  gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
   osc.connect(gain);
   gain.connect(audioCtx.destination);
@@ -1230,18 +1224,448 @@ function playCorrectSound() {
   osc.stop(audioCtx.currentTime + 0.4);
 }
 
-// 5. 오답 효과음 (둔탁하고 하락하는 경고음)
 function playWrongSound() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(200, audioCtx.currentTime); // 낮은 주파수
+  osc.frequency.setValueAtTime(200, audioCtx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.4);
-  gain.gain.setValueAtTime(1.0, audioCtx.currentTime); // 볼륨 1.0
+  gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
   osc.connect(gain);
   gain.connect(audioCtx.destination);
   osc.start();
   osc.stop(audioCtx.currentTime + 0.4);
+}
+
+function playBombSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.5);
+  gain.gain.setValueAtTime(2.0, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.5);
+}
+
+function playBonusSpawnSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+  osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
+  gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.4);
+}
+
+function playObstacleSpawnSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.4);
+  gain.gain.setValueAtTime(1.2, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.4);
+}
+
+// [추가] 리롤 아이템 전용 사운드 (휘릭! 하는 경쾌한 소리)
+function playRerollSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+  gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.3);
+}
+
+// [추가] 2배 버프 아이템 전용 사운드 (오락실 파워업 뾰로롱 소리)
+function playBuffSound() {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'square';
+
+  // 도-미-솔-도 빠르게 상승
+  osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+  osc.frequency.setValueAtTime(400, audioCtx.currentTime + 0.1);
+  osc.frequency.setValueAtTime(600, audioCtx.currentTime + 0.2);
+  osc.frequency.setValueAtTime(800, audioCtx.currentTime + 0.3);
+
+  gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.6);
+}
+
+// ==========================================
+// ★ 통합된 퀴즈 시스템 (일반 + 보너스) ★
+// ==========================================
+function triggerNewQuiz() {
+  if (nextQuizIsBonus) {
+    nextQuizIsBonus = false;
+    triggerBonusQuiz();
+    return;
+  }
+
+  const modal = document.getElementById('quiz-modal');
+  const feedback = document.getElementById('quiz-feedback');
+  const hintBtn = document.getElementById('hint-btn');
+  const pinyinDisplay = document.getElementById('quiz-pinyin');
+
+  feedback.innerText = '';
+  hintBtn.style.display = 'inline-block';
+  pinyinDisplay.style.display = 'none';
+
+  if (!window.QUIZ_DATA) window.QUIZ_DATA = { hsk4: [], hsk5: [], hsk6: [] };
+  const currentLevelData = window.QUIZ_DATA[gameLevel] || [];
+
+  if (availableQuizzes.length === 0 && currentLevelData.length > 0) {
+    availableQuizzes = [...currentLevelData];
+    for (let i = availableQuizzes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [availableQuizzes[i], availableQuizzes[j]] = [
+        availableQuizzes[j],
+        availableQuizzes[i],
+      ];
+    }
+  }
+
+  if (availableQuizzes.length === 0) {
+    currentQuiz = {
+      q: '데이터 없음',
+      pinyin: '-',
+      a: '확인',
+      options: ['확인', '준비중', '테스트'],
+    };
+  } else {
+    currentQuiz = availableQuizzes.pop();
+  }
+
+  document.getElementById('quiz-question').innerHTML = currentQuiz.q;
+  pinyinDisplay.innerText = currentQuiz.pinyin;
+
+  const optionsContainer = document.getElementById('quiz-options');
+  optionsContainer.innerHTML = '';
+
+  currentQuiz.options.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.innerText = opt;
+    btn.onclick = () => {
+      const allBtns = optionsContainer.querySelectorAll('button');
+      allBtns.forEach((b) => (b.disabled = true));
+
+      if (opt === currentQuiz.a) {
+        playCorrectSound();
+        feedback.innerText = '정답입니다!';
+        feedback.style.color = '#00ff00';
+        setTimeout(() => {
+          modal.classList.remove('active');
+          generateDockBlocks();
+        }, 700);
+      } else {
+        playWrongSound();
+
+        // ★ 오답 점수 차감 로직 ★
+        score -= 500;
+        if (score < 0) score = 0;
+        document.getElementById('score').innerText = score;
+
+        // ★ [-500점] 시각적 팝업 이펙트 생성 ★
+        const penaltyPopup = document.createElement('div');
+        penaltyPopup.className = 'penalty-popup-text';
+        penaltyPopup.innerText = '-500';
+        document.body.appendChild(penaltyPopup);
+
+        // 애니메이션(1.2초)이 끝나면 쓰레기(DOM) 치우기
+        setTimeout(() => penaltyPopup.remove(), 1200);
+
+        feedback.innerText =
+          gameMode === 'hell'
+            ? '오답! 장애물 최대 6개 투하!'
+            : '오답! 장애물 1개 투하!';
+        feedback.style.color = '#ff3333';
+        currentCombo = 0;
+        linesClearedThisRound = 0;
+
+        setTimeout(() => {
+          modal.classList.remove('active');
+          spawnObstacleStone(gameMode);
+          generateDockBlocks();
+        }, 1000);
+      }
+    };
+    optionsContainer.appendChild(btn);
+  });
+
+  modal.classList.add('active');
+  playQuizPopupSound();
+}
+
+function showHint() {
+  document.getElementById('hint-btn').style.display = 'none';
+  document.getElementById('quiz-pinyin').style.display = 'block';
+}
+
+function triggerBonusQuiz() {
+  const modal = document.getElementById('quiz-modal');
+  const feedback = document.getElementById('quiz-feedback');
+  const title = document.getElementById('quiz-question');
+  const pinyinDisplay = document.getElementById('quiz-pinyin');
+
+  document.getElementById('hint-btn').style.display = 'none';
+  pinyinDisplay.style.display = 'none';
+  feedback.innerText = '';
+
+  if (!window.BONUS_QUIZ_DATA || window.BONUS_QUIZ_DATA.length === 0) {
+    triggerNewQuiz();
+    return;
+  }
+
+  let bonusQuiz =
+    window.BONUS_QUIZ_DATA[
+      Math.floor(Math.random() * window.BONUS_QUIZ_DATA.length)
+    ];
+  title.innerHTML = `<span style="color: #ffd700; font-size: 20pt; text-shadow: 0 0 10px #ffd700;">[보너스 찬스!]</span><br>${bonusQuiz.q}`;
+
+  const optionsContainer = document.getElementById('quiz-options');
+  optionsContainer.innerHTML = '';
+
+  let shuffledOptions = [...bonusQuiz.options].sort(() => Math.random() - 0.5);
+
+  shuffledOptions.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.style.borderColor = '#ffd700';
+    btn.innerText = opt;
+    btn.onclick = () => {
+      optionsContainer
+        .querySelectorAll('button')
+        .forEach((b) => (b.disabled = true));
+
+      if (opt === bonusQuiz.a) {
+        playCorrectSound();
+        feedback.innerText = '정답입니다! 아이템을 고르세요!';
+        feedback.style.color = '#ffd700';
+        setTimeout(() => {
+          modal.classList.remove('active');
+          document.getElementById('item-selection-modal').style.display =
+            'flex';
+        }, 1000);
+      } else {
+        playWrongSound();
+        feedback.innerText = '아쉽게도 틀렸습니다. (페널티 없음)';
+        feedback.style.color = '#ff3333';
+        setTimeout(() => {
+          modal.classList.remove('active');
+          generateDockBlocks();
+        }, 1000);
+      }
+    };
+    optionsContainer.appendChild(btn);
+  });
+
+  modal.classList.add('active');
+  playQuizPopupSound();
+}
+
+function updateInventoryUI() {
+  document.getElementById('item-bomb-cnt').innerText = playerItems.bomb;
+  document.getElementById('item-reroll-cnt').innerText = playerItems.reroll;
+  document.getElementById('item-double-cnt').innerText =
+    playerItems.doubleScore;
+}
+
+function selectItem(itemType) {
+  playerItems[itemType]++;
+  updateInventoryUI();
+  document.getElementById('item-selection-modal').style.display = 'none';
+  generateDockBlocks();
+}
+
+// ==========================================
+// ★ 아이템 기능 구현부 ★
+// ==========================================
+
+function useBomb() {
+  if (playerItems.bomb <= 0 || isBombActive) return;
+  isBombActive = true;
+  document.getElementById('grid-board').style.cursor = 'crosshair';
+}
+
+function handleBombHover(r, c, isHover) {
+  if (!isBombActive) return;
+  for (let i = r - 1; i <= r + 1; i++) {
+    for (let j = c - 1; j <= c + 1; j++) {
+      if (i >= 0 && i < BOARD_SIZE && j >= 0 && j < BOARD_SIZE) {
+        let cell = document.getElementById(`cell-${i}-${j}`);
+        if (isHover) cell.classList.add('bomb-target');
+        else cell.classList.remove('bomb-target');
+      }
+    }
+  }
+}
+function handleCellClickForBomb(r, c) {
+  if (!isBombActive) return;
+  isBombActive = false;
+  playerItems.bomb--;
+  updateInventoryUI();
+  document.getElementById('grid-board').style.cursor = 'default';
+
+  document
+    .querySelectorAll('.bomb-target')
+    .forEach((el) => el.classList.remove('bomb-target'));
+
+  playBombSound();
+
+  const gameContainer = document.getElementById('game-container');
+  gameContainer.classList.add('bomb-shake-active');
+  setTimeout(() => gameContainer.classList.remove('bomb-shake-active'), 500);
+
+  const flash = document.getElementById('light-flash-overlay');
+  flash.style.background = 'rgba(255, 69, 0, 0.7)';
+  flash.classList.add('flash-active');
+  setTimeout(() => {
+    flash.classList.remove('flash-active');
+    flash.style.background = 'rgba(255, 255, 255, 0.4)';
+  }, 600);
+
+  let destroyedCount = 0;
+  for (let i = r - 1; i <= r + 1; i++) {
+    for (let j = c - 1; j <= c + 1; j++) {
+      if (i >= 0 && i < BOARD_SIZE && j >= 0 && j < BOARD_SIZE) {
+        if (board[i][j] === 4) nextQuizIsBonus = true;
+
+        if (board[i][j] > 0) {
+          // ★ 방해 블록(11 이상)이 아닐 때만 파괴 점수 카운트 ★
+          if (board[i][j] < 11) {
+            destroyedCount++;
+          }
+          board[i][j] = 0;
+          document
+            .getElementById(`cell-${i}-${j}`)
+            .classList.add('bomb-explode');
+        }
+      }
+    }
+  }
+
+  score += destroyedCount * 20; // 순수하게 파괴된 '일반/보너스 블록' 수만큼만 점수 증가
+
+  setTimeout(() => {
+    document
+      .querySelectorAll('.bomb-explode')
+      .forEach((el) => el.classList.remove('bomb-explode'));
+
+    let isAllClear = true;
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      for (let j = 0; j < BOARD_SIZE; j++) {
+        if (board[i][j] > 0) {
+          isAllClear = false;
+          break;
+        }
+      }
+      if (!isAllClear) break;
+    }
+
+    if (isAllClear) {
+      score += 1000;
+      showAllClearEffect();
+    }
+
+    renderBoard();
+    checkGameOverCondition();
+  }, 400);
+}
+// [아이템 2: 리롤] - 화려한 교체 이펙트
+function useReroll() {
+  if (playerItems.reroll <= 0) return;
+  playerItems.reroll--;
+  updateInventoryUI();
+
+  playRerollSound(); // ★ 사운드 재생
+
+  // 1. 대기열(dock-slot) 3D 회전 애니메이션 적용
+  const dockSlots = document.querySelectorAll('.dock-slot');
+  dockSlots.forEach((slot) => {
+    slot.classList.remove('reroll-anim');
+    void slot.offsetWidth; // 애니메이션 리셋
+    slot.classList.add('reroll-anim');
+  });
+
+  // 2. 블록 교체 로직 (애니메이션이 절반쯤 돌아서 안 보일 때 블록 변경)
+  setTimeout(() => {
+    const colorPool = [1, 2, 3].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < 3; i++) {
+      if (currentDockBlocks[i] !== null) {
+        let poolToUse = gameMode === 'hell' ? HARD_BLOCKS : NORMAL_BLOCKS;
+        const blockMatrix = JSON.parse(
+          JSON.stringify(
+            poolToUse[Math.floor(Math.random() * poolToUse.length)],
+          ),
+        );
+        currentDockBlocks[i] = { matrix: blockMatrix, colorVal: colorPool[i] };
+        renderDockSlot(i);
+      }
+    }
+    checkGameOverCondition();
+  }, 250); // 0.5초짜리 애니메이션의 중간인 0.25초에 바뀜
+}
+
+// [아이템 3: 점수 두배] - 화면 번쩍임 + 파워업 텍스트
+function useDoubleScore() {
+  if (playerItems.doubleScore <= 0 || isDoubleScoreActive) return;
+  playerItems.doubleScore--;
+  isDoubleScoreActive = true;
+  updateInventoryUI();
+
+  playBuffSound(); // ★ 파워업 사운드 재생
+
+  // 1. 게임 컨테이너 테두리 네온 번쩍임 효과
+  const gameContainer = document.getElementById('game-container');
+  gameContainer.classList.remove('double-score-flash');
+  void gameContainer.offsetWidth;
+  gameContainer.classList.add('double-score-flash');
+
+  // 2. 화면 중앙을 가로지르는 거대한 홀로그램 텍스트 생성
+  const popup = document.createElement('div');
+  popup.className = 'buff-popup-text';
+  popup.innerHTML = '⭐ SCORE x2 BUFF! ⭐';
+  document.body.appendChild(popup);
+
+  // 3. 콤보 영역에도 보조 텍스트 띄우기
+  const comboEl = document.getElementById('combo-display');
+  comboEl.innerHTML = `<span style="color: #ff00ff; text-shadow: 0 0 15px #ff00ff;">점수 x2 장전 완료!</span>`;
+  comboEl.classList.add('show');
+
+  // 애니메이션 끝나면 생성한 텍스트 쓰레기 치우기
+  setTimeout(() => {
+    popup.remove();
+    gameContainer.classList.remove('double-score-flash');
+    comboEl.classList.remove('show');
+  }, 1500);
 }
