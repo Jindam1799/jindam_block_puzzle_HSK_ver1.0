@@ -47,6 +47,7 @@ function stopAllBGM() {
 
 function playNextTrack() {
   currentAudio = currentPlaylist[currentTrackIndex];
+  currentAudio.volume = 0.17;
   currentAudio.onended = () => {
     currentTrackIndex = (currentTrackIndex + 1) % currentPlaylist.length;
     playNextTrack();
@@ -58,6 +59,7 @@ function playBGM(type) {
   stopAllBGM();
   if (type === 'intro' || type === 'leaderboard') {
     currentAudio = AUDIO_SOURCES[type];
+    currentAudio.volume = 0.17;
     currentAudio.loop = true;
     currentAudio.play().catch((e) => console.log('Audio blocked.'));
   } else {
@@ -1088,9 +1090,8 @@ function showAllClearEffect() {
     acEl.classList.remove('show');
   }, 2000);
 }
-
 // ==========================================
-// ★ 게임 오버 조건 체크 ★
+// ★ 게임 오버 조건 체크 (버튼 강제 생성 로직 포함) ★
 // ==========================================
 function checkGameOverCondition() {
   let activeBlocksCount = 0;
@@ -1113,6 +1114,7 @@ function checkGameOverCondition() {
     }
   }
 
+  // 블록은 남아있는데 더 이상 둘 곳이 없는 경우
   if (activeBlocksCount > 0 && placeableBlocksCount === 0) {
     growAIRivals(gameMode, gameLevel);
 
@@ -1131,12 +1133,26 @@ function checkGameOverCondition() {
       comboEl.classList.remove('show');
 
       const gameOverModal = document.getElementById('game-over-modal');
-      const statsText = document.getElementById('game-over-stats');
-      statsText.innerHTML = `
+      // ★ JS에서 게임 오버 모달의 전체 내용을 강제로 덮어씌웁니다 (로비로 나가기 버튼 포함) ★
+      gameOverModal.innerHTML = `
+        <div class="modal-content">
+            <h2 style="color: #ff3333; font-size: 30pt; margin-bottom: 10px;">GAME OVER</h2>
+            <p id="game-over-stats" style="font-size: 16pt; margin-bottom: 20px;">
                 모드: <strong style="color:#ff00ff;">${gameMode.toUpperCase()}</strong><br>
                 최종 점수: <strong style="color:#00ffcc;">${score}</strong> 점<br>
                 최대 콤보: <strong style="color:#ffaf7b;">${maxComboThisRound}</strong> Combo
-            `;
+            </p>
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="nickname-input" placeholder="닉네임을 입력하세요" maxlength="10" 
+                       style="padding: 10px; font-size: 16pt; width: 80%; text-align: center; border-radius: 8px; border: 2px solid #00ffcc; background: #222; color: #fff;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="option-btn" onclick="saveRanking()" style="flex: 1;">기록 저장</button>
+                <button class="option-btn" onclick="skipRanking()" style="flex: 1; background: #555; border-color: #888; color: #ccc;">로비로 나가기</button>
+            </div>
+        </div>
+      `;
       gameOverModal.classList.add('active');
     }, 1200);
   }
@@ -1323,7 +1339,7 @@ function playBuffSound() {
   osc.stop(audioCtx.currentTime + 0.6);
 }
 // ==========================================
-// ★ 통합된 퀴즈 시스템 (일반 + 보너스) ★
+// ★ 통합된 퀴즈 시스템 (순서 변경) ★
 // ==========================================
 function triggerNewQuiz() {
   if (nextQuizIsBonus) {
@@ -1376,52 +1392,58 @@ function triggerNewQuiz() {
     const btn = document.createElement('button');
     btn.className = 'option-btn';
     btn.innerText = opt;
+
+    // ★ 버튼 클릭 시 순서 및 로직 완전 변경 ★
     btn.onclick = () => {
       const allBtns = optionsContainer.querySelectorAll('button');
       allBtns.forEach((b) => (b.disabled = true));
 
+      // 1. 문제를 풀자마자 일단 모달(창)부터 완전히 닫아버림
+      modal.classList.remove('active');
+
       if (opt === currentQuiz.a) {
         playCorrectSound();
-        feedback.innerText = '정답입니다!';
-        feedback.style.color = '#00ff00';
+
+        // 2. 모달이 화면에서 완전히 사라지는 시간(약 0.3초) 대기 후 이펙트 발생
         setTimeout(() => {
-          modal.classList.remove('active');
+          showGiantHanzi(currentQuiz.q, currentQuiz.pinyin, true);
+        }, 300);
+
+        // 3. 한자 감상 시간(1.5초) 후 게임 속행 (총 1.8초 뒤)
+        setTimeout(() => {
           generateDockBlocks();
-        }, 700);
+        }, 1800);
       } else {
         playWrongSound();
 
-        // ★ 오답 점수 차감 로직 ★
         score -= 500;
         if (score < 0) score = 0;
         document.getElementById('score').innerText = score;
 
-        // ★ [-500점] 시각적 팝업 이펙트 생성 ★
-        const penaltyPopup = document.createElement('div');
-        penaltyPopup.className = 'penalty-popup-text';
-        penaltyPopup.innerText = '-500';
-        document.body.appendChild(penaltyPopup);
-        setTimeout(() => penaltyPopup.remove(), 1200);
-
-        feedback.innerText =
-          gameMode === 'hell'
-            ? '오답! 장애물 최대 6개 투하!'
-            : '오답! 장애물 1개 투하!';
-        feedback.style.color = '#ff3333';
-
         currentCombo = 0;
         linesClearedThisRound = 0;
-        isDoubleScoreActive = false; // ★ 오답으로 콤보가 끊기면 2배 버프도 해제! ★
+        isDoubleScoreActive = false;
 
+        // 2. 모달이 사라진 0.3초 뒤에 페널티 텍스트와 거대 한자 이펙트 동시 발생
         setTimeout(() => {
-          modal.classList.remove('active');
+          const penaltyPopup = document.createElement('div');
+          penaltyPopup.className = 'penalty-popup-text';
+          penaltyPopup.innerText = '-500';
+          document.body.appendChild(penaltyPopup);
+          setTimeout(() => penaltyPopup.remove(), 1200);
+
+          showGiantHanzi(currentQuiz.q, currentQuiz.pinyin, false);
+        }, 300);
+
+        // 3. 한자 감상 시간(1.5초) 후 방해 블록 떨어뜨리고 게임 속행 (총 1.8초 뒤)
+        setTimeout(() => {
           spawnObstacleStone(gameMode);
           generateDockBlocks();
-        }, 1000);
+        }, 1800);
       }
-    }; // ★ 누락되었던 btn.onclick 닫는 괄호 복구
-    optionsContainer.appendChild(btn); // ★ 누락되었던 버튼 생성 코드 복구
-  }); // ★ 누락되었던 forEach 닫는 괄호 복구
+    };
+    optionsContainer.appendChild(btn);
+  });
 
   modal.classList.add('active');
   playQuizPopupSound();
@@ -1695,3 +1717,95 @@ window.addEventListener('keydown', function (e) {
     }
   }
 });
+
+// ==========================================
+// ★ 고음질 & 큰 성량의 중국어 목소리 찾기 ★
+// ==========================================
+let bestChineseVoice = null;
+
+function setBestChineseVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) return;
+
+  // 1순위: 크롬 내장 Google 중국어 (성량이 크고 발음이 매우 또렷함)
+  // 2순위: 윈도우 프리미엄 음성 (Yaoyao, Kangkang, Huihui)
+  // 3순위: 애플 맥/iOS 고음질 음성 (Ting-Ting 등)
+  // 4순위: 기기에 깔려있는 일반 중국어(zh-CN) 아무거나
+  bestChineseVoice =
+    voices.find((v) => v.name.includes('Google 普通话')) ||
+    voices.find((v) => v.name.includes('Google') && v.lang.includes('zh-CN')) ||
+    voices.find(
+      (v) => v.name.includes('Yaoyao') || v.name.includes('Huihui'),
+    ) ||
+    voices.find((v) => v.name.includes('Ting-Ting')) ||
+    voices.find((v) => v.lang === 'zh-CN' || v.lang === 'zh_CN');
+}
+
+// 브라우저가 목소리 목록을 다 불러왔을 때 세팅 실행 (특히 크롬에서 필수)
+if (speechSynthesis.onvoiceschanged !== undefined) {
+  speechSynthesis.onvoiceschanged = setBestChineseVoice;
+}
+
+// 브라우저 내장 TTS를 이용해 중국어 읽어주기
+function speakChinese(text) {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel(); // 혹시 밀려있는 음성이 있다면 취소
+
+    // 아직 목소리 로딩이 안 됐을 수 있으니 재생 직전에도 한 번 더 확인
+    if (!bestChineseVoice) setBestChineseVoice();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-CN'; // 중국어(표준어) 설정
+    utterance.rate = 0.85; // 속도 설정
+    utterance.volume = 1.0; // 최대 볼륨 고정
+
+    // ★ 찾은 고음질/큰 성량의 목소리가 있다면 그걸로 교체! ★
+    if (bestChineseVoice) {
+      utterance.voice = bestChineseVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  }
+}
+// [추가] 화면 중앙에 거대한 한자+병음을 띄우는 함수
+function showGiantHanzi(hanzi, pinyin, isCorrect) {
+  const overlay = document.createElement('div');
+  overlay.className = 'giant-hanzi-overlay';
+
+  // 정답이면 금색+녹색빛, 오답이면 붉은빛으로 테마 변경
+  const color = isCorrect ? '#ffd700' : '#ff3333';
+  const shadow = isCorrect ? 'rgba(0, 255, 204, 0.8)' : 'rgba(255, 0, 0, 0.8)';
+
+  overlay.innerHTML = `
+        <div class="giant-hanzi-text" style="color: ${color}; text-shadow: 0 0 30px ${shadow}, 0 0 60px ${shadow};">${hanzi}</div>
+        <div class="giant-pinyin-text" style="color: #fff; text-shadow: 0 0 10px #000;">${pinyin}</div>
+    `;
+
+  document.body.appendChild(overlay);
+
+  // 약간의 딜레이를 주어 CSS 애니메이션(튀어오름) 발동
+  requestAnimationFrame(() => overlay.classList.add('show'));
+
+  // ★ TTS 음성 재생! ★
+  speakChinese(hanzi);
+
+  // 1.5초 동안 멋있게 보여준 뒤 화면에서 삭제
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    setTimeout(() => overlay.remove(), 300);
+  }, 1500);
+}
+// ==========================================
+// ★ 랭킹 기록 스킵 후 로비로 돌아가기 ★
+// ==========================================
+function skipRanking() {
+  // 1. 게임 오버 모달 닫기
+  document.getElementById('game-over-modal').classList.remove('active');
+
+  // 2. 게임 보드 화면 숨기고 로비 화면 띄우기
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('lobby-screen').style.display = 'flex';
+
+  // 3. 로비(인트로) BGM 재생
+  playBGM('intro');
+}
