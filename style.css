@@ -1056,20 +1056,25 @@ body.theme-hell.theme-hsk6 .combo-text {
     opacity: 0;
   }
 }
-
 /* ==========================================
-   ★ 거대 한자 팝업 이펙트 ★
+   ★ 거대 한자 팝업 이펙트 (모바일 강제 가로 정렬 완벽 방어) ★
 ========================================== */
 .giant-hanzi-overlay {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) scale(0);
-  text-align: center;
   z-index: 10001;
   pointer-events: none;
   opacity: 0;
   transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ★ 추가: 컨테이너 너비를 화면 100%로 꽉 채우고, Flexbox로 정중앙 정렬 강제 ★ */
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .giant-hanzi-overlay.show {
@@ -1079,10 +1084,14 @@ body.theme-hell.theme-hsk6 .combo-text {
 
 .giant-hanzi-text {
   font-family: 'KaiTi', 'STKaiti', '楷体', serif;
-  font-size: 100pt; /* 데스크탑 기본 크기 */
+  font-size: 100pt;
   font-weight: bold;
   line-height: 1.2;
-  white-space: nowrap; /* ★ 강제 줄바꿈 방지 (항상 가로로 유지) ★ */
+  text-align: center;
+
+  /* ★ 어떤 기존 코드에도 밀리지 않도록 !important와 단어 분리 방지 추가 ★ */
+  white-space: nowrap !important;
+  word-break: keep-all !important;
 }
 
 .giant-pinyin-text {
@@ -1090,15 +1099,19 @@ body.theme-hell.theme-hsk6 .combo-text {
   font-family: 'Arial', sans-serif;
   font-weight: bold;
   letter-spacing: 2px;
-  white-space: nowrap; /* ★ 병음도 강제 줄바꿈 방지 ★ */
+  text-align: center;
+
+  /* ★ 병음도 강력하게 줄바꿈 방지 ★ */
+  white-space: nowrap !important;
+  word-break: keep-all !important;
 }
 
-/* ★ 모바일 기기(화면 폭 600px 이하)를 위한 반응형 폰트 크기 자동 조절 ★ */
+/* ★ 모바일 기기를 위한 반응형 폰트 크기 자동 조절 ★ */
 @media (max-width: 600px) {
   .giant-hanzi-text {
-    font-size: 20vw; /* 모바일 화면 넓이(Viewport Width)에 비례해서 크기 축소 */
+    font-size: 20vw !important;
   }
   .giant-pinyin-text {
-    font-size: 8vw;
+    font-size: 8vw !important;
   }
 }
