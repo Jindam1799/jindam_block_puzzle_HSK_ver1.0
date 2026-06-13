@@ -710,7 +710,7 @@ function spawnBonusBlockOnBoard() {
     }
   }
 
-  if (hasBonus || emptyCells.length === 0 || Math.random() >= 0.1) return;
+  if (hasBonus || emptyCells.length === 0 || Math.random() >= 0.25) return;
 
   let randCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
   board[randCell.r][randCell.c] = 4;
@@ -1670,3 +1670,28 @@ function useDoubleScore() {
     comboEl.classList.remove('show');
   }, 1500);
 }
+
+// ==========================================
+// ★ 키보드(1, 2, 3) 퀴즈 정답 선택 로직 ★
+// ==========================================
+window.addEventListener('keydown', function (e) {
+  const quizModal = document.getElementById('quiz-modal');
+
+  // 퀴즈 모달이 활성화된 상태일 때만 작동
+  if (quizModal && quizModal.classList.contains('active')) {
+    const optionsContainer = document.getElementById('quiz-options');
+
+    // 이미 정답을 골라서 버튼이 비활성화(disabled)된 상태가 아닐 때만
+    const buttons = optionsContainer.querySelectorAll('button:not([disabled])');
+
+    if (buttons.length > 0) {
+      if (e.key === '1' || e.code === 'Numpad1') {
+        if (buttons[0]) buttons[0].click(); // 첫 번째 버튼 클릭
+      } else if (e.key === '2' || e.code === 'Numpad2') {
+        if (buttons[1]) buttons[1].click(); // 두 번째 버튼 클릭
+      } else if (e.key === '3' || e.code === 'Numpad3') {
+        if (buttons[2]) buttons[2].click(); // 세 번째 버튼 클릭
+      }
+    }
+  }
+});
