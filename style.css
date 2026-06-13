@@ -1078,11 +1078,11 @@ body.theme-hell.theme-hsk6 .combo-text {
 }
 
 .giant-hanzi-text {
-  /* 정통 붓글씨(해서체) 폰트 세팅 */
   font-family: 'KaiTi', 'STKaiti', '楷体', serif;
-  font-size: 100pt;
+  font-size: 100pt; /* 데스크탑 기본 크기 */
   font-weight: bold;
   line-height: 1.2;
+  white-space: nowrap; /* ★ 강제 줄바꿈 방지 (항상 가로로 유지) ★ */
 }
 
 .giant-pinyin-text {
@@ -1090,4 +1090,15 @@ body.theme-hell.theme-hsk6 .combo-text {
   font-family: 'Arial', sans-serif;
   font-weight: bold;
   letter-spacing: 2px;
+  white-space: nowrap; /* ★ 병음도 강제 줄바꿈 방지 ★ */
+}
+
+/* ★ 모바일 기기(화면 폭 600px 이하)를 위한 반응형 폰트 크기 자동 조절 ★ */
+@media (max-width: 600px) {
+  .giant-hanzi-text {
+    font-size: 20vw; /* 모바일 화면 넓이(Viewport Width)에 비례해서 크기 축소 */
+  }
+  .giant-pinyin-text {
+    font-size: 8vw;
+  }
 }
