@@ -330,6 +330,50 @@
           </button>
         </div>
       </div>
+      <div id="game-over-modal" class="modal">
+        <div class="modal-content">
+          <h2 style="color: #ff3333; font-size: 30pt; margin-bottom: 10px">
+            GAME OVER
+          </h2>
+
+          <p
+            id="game-over-stats"
+            style="font-size: 16pt; margin-bottom: 20px"
+          ></p>
+
+          <div style="margin-bottom: 20px">
+            <input
+              type="text"
+              id="nickname-input"
+              placeholder="닉네임을 입력하세요"
+              maxlength="10"
+              style="
+                padding: 10px;
+                font-size: 16pt;
+                width: 80%;
+                text-align: center;
+                border-radius: 8px;
+                border: 2px solid #00ffcc;
+                background: #222;
+                color: #fff;
+              "
+            />
+          </div>
+
+          <div style="display: flex; gap: 10px; justify-content: center">
+            <button class="option-btn" onclick="saveRanking()" style="flex: 1">
+              기록 저장
+            </button>
+            <button
+              class="option-btn"
+              onclick="skipRanking()"
+              style="flex: 1; background: #555; border-color: #888; color: #ccc"
+            >
+              로비로 나가기
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div id="alert-modal" class="modal" style="z-index: 500">
         <div
