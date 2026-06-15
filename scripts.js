@@ -475,12 +475,17 @@ const HARD_BLOCKS = [
     [0, 1, 1],
   ],
 ];
+// ==========================================
+// ★ 초기화 및 메인 게임 루프 (이펙트 리셋 보강) ★
+// ==========================================
 function startGame(mode, level) {
   gameMode = mode;
   gameLevel = level;
 
+  const gameContainer = document.getElementById('game-container');
+
   document.getElementById('lobby-screen').style.display = 'none';
-  document.getElementById('game-container').style.display = 'flex';
+  if (gameContainer) gameContainer.style.display = 'flex';
 
   document.body.className = '';
   document.body.classList.add(`theme-${mode}`);
@@ -504,13 +509,21 @@ function startGame(mode, level) {
     .fill(null)
     .map(() => Array(BOARD_SIZE).fill(0));
 
-  // 변수 완전 초기화
+  // 1. 내부 변수 완전 초기화
   isSpecialBlockSpawned = false;
   nextQuizIsBonus = false;
   playerItems = { bomb: 0, reroll: 0, doubleScore: 0 };
   isBombActive = false;
   isDoubleScoreActive = false;
-  isGameLocked = false; // ★ 게임 시작 시 무조건 터치 잠금 해제
+  isGameLocked = false;
+
+  // ★ 2. 이전 게임의 시각적 이펙트 잔재 완벽 청소 ★
+  if (gameContainer) {
+    gameContainer.classList.remove('double-score-persistent');
+    gameContainer.classList.remove('double-score-flash');
+    gameContainer.classList.remove('bomb-shake-active');
+    gameContainer.classList.remove('shake-active');
+  }
 
   updateInventoryUI();
   score = 0;
