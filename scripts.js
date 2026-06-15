@@ -310,7 +310,7 @@ let nextQuizIsBonus = false;
 let playerItems = { bomb: 0, reroll: 0, doubleScore: 0 };
 let isBombActive = false;
 let isDoubleScoreActive = false;
-
+let isGameLocked = false; // ★ 화면 이펙트 중 블록 터치 방지용 잠금 변수 추가
 let currentQuiz = null;
 let availableQuizzes = [];
 
@@ -475,10 +475,6 @@ const HARD_BLOCKS = [
     [0, 1, 1],
   ],
 ];
-
-// ==========================================
-// ★ 초기화 및 메인 게임 루프 ★
-// ==========================================
 function startGame(mode, level) {
   gameMode = mode;
   gameLevel = level;
@@ -514,6 +510,8 @@ function startGame(mode, level) {
   playerItems = { bomb: 0, reroll: 0, doubleScore: 0 };
   isBombActive = false;
   isDoubleScoreActive = false;
+  isGameLocked = false; // ★ 게임 시작 시 무조건 터치 잠금 해제
+
   updateInventoryUI();
   score = 0;
   currentCombo = 0;
@@ -751,7 +749,7 @@ function renderDockSlot(slotIndex) {
 }
 
 // ==========================================
-// ★ 드래그 앤 드롭 시스템 ★
+// ★ 드래그 앤 드롭 시스템 (잠금 로직 포함) ★
 // ==========================================
 function setupTouchEvents() {
   const dockSlots = document.querySelectorAll('.dock-slot');
@@ -771,8 +769,12 @@ function setupTouchEvents() {
   }
 
   function handleStart(clientX, clientY, slot) {
+    // ★ 이펙트 재생 중(isGameLocked)이거나 블록이 없으면 아예 터치를 무시함!
+    if (isGameLocked || isBombActive) return;
+
     const slotIndex = parseInt(slot.getAttribute('data-slot'));
     if (!currentDockBlocks[slotIndex]) return;
+
     activeDragIndex = slotIndex;
     isDragging = true;
     createDragOverlayStyle(currentDockBlocks[slotIndex]);
@@ -802,11 +804,17 @@ function setupTouchEvents() {
 
         clearFullLines(() => {
           if (currentDockBlocks.every((b) => b === null)) {
+            // ★ 3개의 블록을 다 놨는데 1줄도 못 맞춰서 콤보가 끊긴 경우 ★
             if (linesClearedThisRound === 0) {
               currentCombo = 0;
-              isDoubleScoreActive = false; // ★ 줄을 하나도 못 지워서 콤보가 끊기면 버프 해제! ★
+              isDoubleScoreActive = false;
+              // 버프 보라색 빛 강제 해제
+              document
+                .getElementById('game-container')
+                .classList.remove('double-score-persistent');
             }
             linesClearedThisRound = 0;
+            isGameLocked = true; // 퀴즈 창이 뜨기 전부터 미리 화면 터치 잠금
             setTimeout(() => triggerNewQuiz(), 300);
           } else {
             checkGameOverCondition();
@@ -1339,7 +1347,7 @@ function playBuffSound() {
   osc.stop(audioCtx.currentTime + 0.6);
 }
 // ==========================================
-// ★ 통합된 퀴즈 시스템 (순서 변경) ★
+// ★ 통합된 퀴즈 시스템 (순서 변경 및 터치 잠금) ★
 // ==========================================
 function triggerNewQuiz() {
   if (nextQuizIsBonus) {
@@ -1347,6 +1355,8 @@ function triggerNewQuiz() {
     triggerBonusQuiz();
     return;
   }
+
+  isGameLocked = true; // ★ 퀴즈가 시작되면 무조건 화면 터치 잠금
 
   const modal = document.getElementById('quiz-modal');
   const feedback = document.getElementById('quiz-feedback');
@@ -1393,25 +1403,22 @@ function triggerNewQuiz() {
     btn.className = 'option-btn';
     btn.innerText = opt;
 
-    // ★ 버튼 클릭 시 순서 및 로직 완전 변경 ★
     btn.onclick = () => {
       const allBtns = optionsContainer.querySelectorAll('button');
       allBtns.forEach((b) => (b.disabled = true));
 
-      // 1. 문제를 풀자마자 일단 모달(창)부터 완전히 닫아버림
       modal.classList.remove('active');
 
       if (opt === currentQuiz.a) {
         playCorrectSound();
 
-        // 2. 모달이 화면에서 완전히 사라지는 시간(약 0.3초) 대기 후 이펙트 발생
         setTimeout(() => {
           showGiantHanzi(currentQuiz.q, currentQuiz.pinyin, true);
         }, 300);
 
-        // 3. 한자 감상 시간(1.5초) 후 게임 속행 (총 1.8초 뒤)
         setTimeout(() => {
           generateDockBlocks();
+          isGameLocked = false; // ★ 이펙트가 다 끝나고 새 블록이 나오면 터치 잠금 해제!
         }, 1800);
       } else {
         playWrongSound();
@@ -1422,23 +1429,27 @@ function triggerNewQuiz() {
 
         currentCombo = 0;
         linesClearedThisRound = 0;
-        isDoubleScoreActive = false;
 
-        // 2. 모달이 사라진 0.3초 뒤에 페널티 텍스트와 거대 한자 이펙트 동시 발생
+        // ★ 오답으로 콤보가 끊기면 보라색 빛과 버프 강제 해제 ★
+        isDoubleScoreActive = false;
+        document
+          .getElementById('game-container')
+          .classList.remove('double-score-persistent');
+
         setTimeout(() => {
           const penaltyPopup = document.createElement('div');
           penaltyPopup.className = 'penalty-popup-text';
           penaltyPopup.innerText = '-500';
           document.body.appendChild(penaltyPopup);
-          setTimeout(() => penaltyPopup.remove(), 1200);
+          setTimeout(() => penaltyPopup.remove(), 2000);
 
           showGiantHanzi(currentQuiz.q, currentQuiz.pinyin, false);
         }, 300);
 
-        // 3. 한자 감상 시간(1.5초) 후 방해 블록 떨어뜨리고 게임 속행 (총 1.8초 뒤)
         setTimeout(() => {
           spawnObstacleStone(gameMode);
           generateDockBlocks();
+          isGameLocked = false; // ★ 방해물이 떨어지고 나서야 터치 잠금 해제!
         }, 1800);
       }
     };
@@ -1453,7 +1464,6 @@ function showHint() {
   document.getElementById('hint-btn').style.display = 'none';
   document.getElementById('quiz-pinyin').style.display = 'block';
 }
-
 function triggerBonusQuiz() {
   const modal = document.getElementById('quiz-modal');
   const feedback = document.getElementById('quiz-feedback');
@@ -1485,6 +1495,7 @@ function triggerBonusQuiz() {
     btn.className = 'option-btn';
     btn.style.borderColor = '#ffd700';
     btn.innerText = opt;
+
     btn.onclick = () => {
       optionsContainer
         .querySelectorAll('button')
@@ -1506,6 +1517,7 @@ function triggerBonusQuiz() {
         setTimeout(() => {
           modal.classList.remove('active');
           generateDockBlocks();
+          isGameLocked = false; // ★ 보너스 문제 오답 시에도 터치 잠금 해제!
         }, 1000);
       }
     };
@@ -1528,6 +1540,7 @@ function selectItem(itemType) {
   updateInventoryUI();
   document.getElementById('item-selection-modal').style.display = 'none';
   generateDockBlocks();
+  isGameLocked = false; // ★ 아이템을 선택하고 게임판으로 돌아오면 터치 잠금 완벽 해제!
 }
 
 // ==========================================
@@ -1659,36 +1672,30 @@ function useReroll() {
   }, 250); // 0.5초짜리 애니메이션의 중간인 0.25초에 바뀜
 }
 
-// [아이템 3: 점수 두배] - 화면 번쩍임 + 파워업 텍스트
+// [아이템 3: 점수 두배] - 화면 번쩍임 + 콤보 지속 보라색 빛
 function useDoubleScore() {
   if (playerItems.doubleScore <= 0 || isDoubleScoreActive) return;
   playerItems.doubleScore--;
   isDoubleScoreActive = true;
   updateInventoryUI();
 
-  playBuffSound(); // ★ 파워업 사운드 재생
+  playBuffSound();
 
-  // 1. 게임 컨테이너 테두리 네온 번쩍임 효과
+  // ★ 1회성 번쩍임 대신 무한 유지되는 보라색 테두리 클래스 부여 ★
   const gameContainer = document.getElementById('game-container');
-  gameContainer.classList.remove('double-score-flash');
-  void gameContainer.offsetWidth;
-  gameContainer.classList.add('double-score-flash');
+  gameContainer.classList.add('double-score-persistent');
 
-  // 2. 화면 중앙을 가로지르는 거대한 홀로그램 텍스트 생성
   const popup = document.createElement('div');
   popup.className = 'buff-popup-text';
   popup.innerHTML = '⭐ SCORE x2 BUFF! ⭐';
   document.body.appendChild(popup);
 
-  // 3. 콤보 영역에도 보조 텍스트 띄우기
   const comboEl = document.getElementById('combo-display');
   comboEl.innerHTML = `<span style="color: #ff00ff; text-shadow: 0 0 15px #ff00ff;">점수 x2 장전 완료!</span>`;
   comboEl.classList.add('show');
 
-  // 애니메이션 끝나면 생성한 텍스트 쓰레기 치우기
   setTimeout(() => {
     popup.remove();
-    gameContainer.classList.remove('double-score-flash');
     comboEl.classList.remove('show');
   }, 1500);
 }
