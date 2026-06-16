@@ -767,22 +767,37 @@ function renderDockSlot(slotIndex) {
 function setupTouchEvents() {
   const dockSlots = document.querySelectorAll('.dock-slot');
   const overlay = document.getElementById('drag-overlay');
+  // ★ 드래그 최적화용 변수 2개
+  let dragRAF = null;
+  let lastShadowKey = null;
 
   function updateDragPosition(clientX, clientY) {
     if (!isDragging) return { topLeftX: 0, topLeftY: 0 };
     const overlayRect = overlay.getBoundingClientRect();
     const centerX = clientX;
     const centerY = clientY - 40;
-    overlay.style.left = `${centerX - overlayRect.width / 2}px`;
-    overlay.style.top = `${centerY - overlayRect.height / 2}px`;
-    const topLeftX = centerX - overlayRect.width / 2 + 20;
-    const topLeftY = centerY - overlayRect.height / 2 + 20;
-    drawShadow(topLeftX, topLeftY);
+
+    // ★ 모바일 렉의 주범(top/left)을 지우고 GPU 가속(transform)으로 교체
+    const x = centerX - overlayRect.width / 2;
+    const y = centerY - overlayRect.height / 2;
+    overlay.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+
+    const topLeftX = x + 20;
+    const topLeftY = y + 20;
+
+    // ★ 블록이 가리키는 '칸'이 바뀌었을 때만 그림자를 다시 그림 (연산량 90% 감소)
+    const targetCell = findBoardCellAtPos(topLeftX, topLeftY);
+    const targetKey = targetCell ? `${targetCell.r}-${targetCell.c}` : 'none';
+
+    if (lastShadowKey !== targetKey) {
+      lastShadowKey = targetKey;
+      drawShadow(topLeftX, topLeftY);
+    }
+
     return { topLeftX, topLeftY };
   }
 
   function handleStart(clientX, clientY, slot) {
-    // ★ 이펙트 재생 중(isGameLocked)이거나 블록이 없으면 아예 터치를 무시함!
     if (isGameLocked || isBombActive) return;
 
     const slotIndex = parseInt(slot.getAttribute('data-slot'));
@@ -790,19 +805,32 @@ function setupTouchEvents() {
 
     activeDragIndex = slotIndex;
     isDragging = true;
+    lastShadowKey = null; // 초기화
+
     createDragOverlayStyle(currentDockBlocks[slotIndex]);
+
+    // transform 기준점 0으로 고정
+    overlay.style.top = '0px';
+    overlay.style.left = '0px';
     overlay.style.display = 'block';
+
     requestAnimationFrame(() => updateDragPosition(clientX, clientY));
   }
 
   function handleMove(clientX, clientY) {
-    updateDragPosition(clientX, clientY);
+    // 60프레임 동기화 (스로틀링)
+    if (dragRAF) cancelAnimationFrame(dragRAF);
+    dragRAF = requestAnimationFrame(() => {
+      updateDragPosition(clientX, clientY);
+    });
   }
 
   function handleEnd(clientX, clientY) {
     if (!isDragging) return;
     const { topLeftX, topLeftY } = updateDragPosition(clientX, clientY);
+
     isDragging = false;
+    lastShadowKey = null; // 초기화
     overlay.style.display = 'none';
     clearShadow();
 
@@ -817,17 +845,15 @@ function setupTouchEvents() {
 
         clearFullLines(() => {
           if (currentDockBlocks.every((b) => b === null)) {
-            // ★ 3개의 블록을 다 놨는데 1줄도 못 맞춰서 콤보가 끊긴 경우 ★
             if (linesClearedThisRound === 0) {
               currentCombo = 0;
               isDoubleScoreActive = false;
-              // 버프 보라색 빛 강제 해제
               document
                 .getElementById('game-container')
                 .classList.remove('double-score-persistent');
             }
             linesClearedThisRound = 0;
-            isGameLocked = true; // 퀴즈 창이 뜨기 전부터 미리 화면 터치 잠금
+            isGameLocked = true;
             setTimeout(() => triggerNewQuiz(), 300);
           } else {
             checkGameOverCondition();
@@ -1766,26 +1792,26 @@ if (speechSynthesis.onvoiceschanged !== undefined) {
   speechSynthesis.onvoiceschanged = setBestChineseVoice;
 }
 
-// 브라우저 내장 TTS를 이용해 중국어 읽어주기
+// 브라우저 내장 TTS를 이용해 중국어 읽어주기 (비동기 최적화)
 function speakChinese(text) {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel(); // 혹시 밀려있는 음성이 있다면 취소
+  // ★ 브라우저 화면 그리기(렌더링)가 멈추지 않도록 음성 재생을 0.05초 뒤로 미룸
+  setTimeout(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      if (!bestChineseVoice) setBestChineseVoice();
 
-    // 아직 목소리 로딩이 안 됐을 수 있으니 재생 직전에도 한 번 더 확인
-    if (!bestChineseVoice) setBestChineseVoice();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-CN';
+      utterance.rate = 0.85;
+      utterance.volume = 1.0;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'zh-CN'; // 중국어(표준어) 설정
-    utterance.rate = 0.85; // 속도 설정
-    utterance.volume = 1.0; // 최대 볼륨 고정
+      if (bestChineseVoice) {
+        utterance.voice = bestChineseVoice;
+      }
 
-    // ★ 찾은 고음질/큰 성량의 목소리가 있다면 그걸로 교체! ★
-    if (bestChineseVoice) {
-      utterance.voice = bestChineseVoice;
+      window.speechSynthesis.speak(utterance);
     }
-
-    window.speechSynthesis.speak(utterance);
-  }
+  }, 50);
 }
 // [추가] 화면 중앙에 거대한 한자+병음을 띄우는 함수
 function showGiantHanzi(hanzi, pinyin, isCorrect) {
