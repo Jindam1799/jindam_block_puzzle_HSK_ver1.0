@@ -1075,6 +1075,7 @@ body.theme-hell.theme-hsk6 .combo-text {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  will-change: transform, opacity; /* ★ 모바일 GPU 예열용 */
 }
 
 .giant-hanzi-overlay.show {
