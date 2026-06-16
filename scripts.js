@@ -989,6 +989,9 @@ function placeBlock(startR, startC, matrix, colorVal) {
   renderBoard();
 }
 
+// ==========================================
+// ★ 줄 제거 및 이펙트 최적화 로직 ★
+// ==========================================
 function clearFullLines(onComplete) {
   let rowsToClear = [];
   let colsToClear = [];
@@ -1019,18 +1022,27 @@ function clearFullLines(onComplete) {
       '--shake-int',
       Math.min(shakeIntensity, 6),
     );
+
+    // ★ 최적화 1: 화면 흔들림 강제 리플로우 제거
     const gameContainer = document.getElementById('game-container');
     gameContainer.classList.remove('shake-active');
-    void gameContainer.offsetWidth;
-    gameContainer.classList.add('shake-active');
-    setTimeout(() => gameContainer.classList.remove('shake-active'), 400);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        gameContainer.classList.add('shake-active');
+        setTimeout(() => gameContainer.classList.remove('shake-active'), 400);
+      });
+    });
 
     if (currentCombo >= 10) {
+      // ★ 최적화 2: 번쩍임 이펙트 강제 리플로우 제거
       const flash = document.getElementById('light-flash-overlay');
       flash.classList.remove('flash-active');
-      void flash.offsetWidth;
-      flash.classList.add('flash-active');
-      setTimeout(() => flash.classList.remove('flash-active'), 600);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          flash.classList.add('flash-active');
+          setTimeout(() => flash.classList.remove('flash-active'), 600);
+        });
+      });
     }
 
     let normalCells = [];
@@ -1061,7 +1073,6 @@ function clearFullLines(onComplete) {
 
     setTimeout(() => {
       normalCells.forEach((pos) => {
-        // ★ 특수 블록(4번 색상) 제거 시 보너스 퀴즈 예약 ★
         if (board[pos.r][pos.c] === 4) nextQuizIsBonus = true;
         board[pos.r][pos.c] = 0;
       });
@@ -1073,10 +1084,8 @@ function clearFullLines(onComplete) {
       const baseScore = gameMode === 'hell' ? 300 : 150;
       let earnedScore = totalCleared * baseScore * currentCombo;
 
-      // ★ 점수 x2 버프 적용 (콤보 유지 시 계속 적용) ★
       if (isDoubleScoreActive) {
         earnedScore *= 2;
-        // isDoubleScoreActive = false; <- 이 부분이 삭제되어 계속 유지됩니다!
         document.getElementById('combo-display').innerHTML +=
           '<br><span style="color:#ff00ff; font-size:14pt;">x2 버프 유지 중!</span>';
       }
@@ -1116,26 +1125,36 @@ function showComboEffect(linesCleared, finalCombo) {
       ? `<span class="bonus-lines">+${linesCleared} LINES!</span>`
       : '';
   comboEl.innerHTML = `${bonusText}${finalCombo} COMBO!`;
+
+  // ★ 최적화 3: 콤보 텍스트 팝업 강제 리플로우 제거
   comboEl.classList.remove('show');
-  void comboEl.offsetWidth;
-  comboEl.classList.add('show');
-  setTimeout(() => {
-    comboEl.classList.remove('show');
-  }, 1200);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      comboEl.classList.add('show');
+      setTimeout(() => comboEl.classList.remove('show'), 1200);
+    });
+  });
 }
 
 function showAllClearEffect() {
   const acEl = document.getElementById('all-clear-display');
+  // ★ 최적화 4: 올클리어 팝업 강제 리플로우 제거
   acEl.classList.remove('show');
-  void acEl.offsetWidth;
-  acEl.classList.add('show');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      acEl.classList.add('show');
+      setTimeout(() => acEl.classList.remove('show'), 2000);
+    });
+  });
+
   const flash = document.getElementById('light-flash-overlay');
   flash.classList.remove('flash-active');
-  void flash.offsetWidth;
-  flash.classList.add('flash-active');
-  setTimeout(() => {
-    acEl.classList.remove('show');
-  }, 2000);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      flash.classList.add('flash-active');
+      setTimeout(() => flash.classList.remove('flash-active'), 600);
+    });
+  });
 }
 // ==========================================
 // ★ 게임 오버 조건 체크 (버튼 강제 생성 로직 포함) ★
