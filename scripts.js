@@ -767,25 +767,26 @@ function renderDockSlot(slotIndex) {
 function setupTouchEvents() {
   const dockSlots = document.querySelectorAll('.dock-slot');
   const overlay = document.getElementById('drag-overlay');
-  // ★ 드래그 최적화용 변수 2개
+  // ★ 브라우저 과부하를 막기 위한 계산 생략용 변수들
   let dragRAF = null;
   let lastShadowKey = null;
+  let currentBlockWidth = 0; // 현재 쥐고 있는 블록의 실제 가로 크기
+  let currentBlockHeight = 0; // 현재 쥐고 있는 블록의 실제 세로 크기
 
   function updateDragPosition(clientX, clientY) {
     if (!isDragging) return { topLeftX: 0, topLeftY: 0 };
-    const overlayRect = overlay.getBoundingClientRect();
+
     const centerX = clientX;
     const centerY = clientY - 40;
 
-    // ★ 모바일 렉의 주범(top/left)을 지우고 GPU 가속(transform)으로 교체
-    const x = centerX - overlayRect.width / 2;
-    const y = centerY - overlayRect.height / 2;
-    overlay.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    // ★ 기존의 완벽했던 절대 좌표 방식으로 회귀하되, 무거운 연산(getBoundingClientRect)을 제거!
+    overlay.style.left = `${centerX - currentBlockWidth / 2}px`;
+    overlay.style.top = `${centerY - currentBlockHeight / 2}px`;
 
-    const topLeftX = x + 20;
-    const topLeftY = y + 20;
+    const topLeftX = centerX - currentBlockWidth / 2 + 20;
+    const topLeftY = centerY - currentBlockHeight / 2 + 20;
 
-    // ★ 블록이 가리키는 '칸'이 바뀌었을 때만 그림자를 다시 그림 (연산량 90% 감소)
+    // ★ 블록이 가리키는 '칸'이 실제로 바뀔 때만 그림자를 다시 그리도록 필터링 (렉 제거 핵심)
     const targetCell = findBoardCellAtPos(topLeftX, topLeftY);
     const targetKey = targetCell ? `${targetCell.r}-${targetCell.c}` : 'none';
 
@@ -805,20 +806,26 @@ function setupTouchEvents() {
 
     activeDragIndex = slotIndex;
     isDragging = true;
-    lastShadowKey = null; // 초기화
+    lastShadowKey = null;
 
-    createDragOverlayStyle(currentDockBlocks[slotIndex]);
+    // 드래그 시작 시점에 딱 한 번 보드판 위치 기억
+    cachedBoardRect = document
+      .getElementById('grid-board')
+      .getBoundingClientRect();
 
-    // transform 기준점 0으로 고정
-    overlay.style.top = '0px';
-    overlay.style.left = '0px';
+    const blockData = currentDockBlocks[slotIndex];
+    createDragOverlayStyle(blockData);
+
+    // ★ 브라우저에게 크기를 묻지 않고, 블록 칸수에 맞게 가로세로 크기를 수학적으로 즉시 계산! (모바일 0px 오류 방지)
+    currentBlockWidth = blockData.matrix[0].length * 40;
+    currentBlockHeight = blockData.matrix.length * 40;
+
     overlay.style.display = 'block';
 
     requestAnimationFrame(() => updateDragPosition(clientX, clientY));
   }
 
   function handleMove(clientX, clientY) {
-    // 60프레임 동기화 (스로틀링)
     if (dragRAF) cancelAnimationFrame(dragRAF);
     dragRAF = requestAnimationFrame(() => {
       updateDragPosition(clientX, clientY);
@@ -830,7 +837,8 @@ function setupTouchEvents() {
     const { topLeftX, topLeftY } = updateDragPosition(clientX, clientY);
 
     isDragging = false;
-    lastShadowKey = null; // 초기화
+    lastShadowKey = null;
+    cachedBoardRect = null;
     overlay.style.display = 'none';
     clearShadow();
 
@@ -938,9 +946,14 @@ function createDragOverlayStyle(blockData) {
   overlay.appendChild(container);
 }
 
+let cachedBoardRect = null;
+
 function findBoardCellAtPos(x, y) {
-  const boardEl = document.getElementById('grid-board');
-  const rect = boardEl.getBoundingClientRect();
+  // 드래그 시작할 때 저장된 안전한 좌표를 사용하되, 없으면 실시간으로 가져옵니다.
+  const rect =
+    cachedBoardRect ||
+    document.getElementById('grid-board').getBoundingClientRect();
+
   if (
     x < rect.left - 20 ||
     x > rect.right + 20 ||
@@ -948,6 +961,7 @@ function findBoardCellAtPos(x, y) {
     y > rect.bottom + 20
   )
     return null;
+
   const cellW = rect.width / BOARD_SIZE;
   const cellH = rect.height / BOARD_SIZE;
   let c = Math.floor((x - rect.left) / cellW);
