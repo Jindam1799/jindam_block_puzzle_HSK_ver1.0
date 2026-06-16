@@ -1138,3 +1138,17 @@ body.theme-hell.theme-hsk6 .combo-text {
     border-color: #ff00ff;
   }
 }
+
+/* ==========================================
+   ★ 폭발 및 화면 이펙트 GPU 하드웨어 가속 강제 ★
+========================================== */
+.cell-explode,
+.cell-damage,
+.shake-active,
+.bomb-shake-active,
+.flash-active,
+.show {
+  will-change: transform, opacity, filter;
+  backface-visibility: hidden; /* 렌더링 깜빡임 방지 */
+  transform: translateZ(0); /* 강제로 GPU 레이어 독립 할당 */
+}
