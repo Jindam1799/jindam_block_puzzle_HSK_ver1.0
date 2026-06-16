@@ -1749,7 +1749,7 @@ function useDoubleScore() {
   document.body.appendChild(popup);
 
   const comboEl = document.getElementById('combo-display');
-  comboEl.innerHTML = `<span style="color: #ff00ff; text-shadow: 0 0 15px #ff00ff;">점수 x2 장전 완료!</span>`;
+  comboEl.innerHTML = `<span style="color: #ff00ff; text-shadow: 0 0 15px #ff00ff;">점수 2배</span>`;
   comboEl.classList.add('show');
 
   setTimeout(() => {
